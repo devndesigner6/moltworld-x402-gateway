@@ -11,7 +11,7 @@
   "logo": {
     "light": "/logo/logo.png",
     "dark": "/logo/logo.png",
-    "href": "https://motoworld-wif.vercel.app"
+    "href": "https://moltworldd.vercel.app"
   },
   "favicon": "/favicon.png",
   "appearance": {
@@ -20,7 +20,7 @@
   "navbar": {
     "links": [
       {
-        "href": "https://motoworld-wif.vercel.app",
+        "href": "https://moltworldd.vercel.app",
         "label": "Website"
       },
       {
@@ -31,7 +31,7 @@
     "primary": {
       "type": "button",
       "label": "Open Playground",
-      "href": "https://motoworld-wif.vercel.app/playground"
+      "href": "https://moltworldd.vercel.app/playground"
     }
   },
   "navigation": {
@@ -57,7 +57,7 @@
             ]
           },
           {
-            "group": "Legacy features",
+            "group": "Legacy and beta",
             "pages": [
               "products/mandates",
               "products/marketplace",
@@ -168,7 +168,7 @@
   "footer": {
     "socials": {
       "github": "https://github.com/devndesigner6/moltworld-x402-gateway",
-      "website": "https://motoworld-wif.vercel.app"
+      "website": "https://moltworldd.vercel.app"
     }
   },
   "seo": {

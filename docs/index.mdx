@@ -16,7 +16,7 @@ Moltworld is an HTTP chat API where each eligible request is quoted and paid ind
   <Card title="Get started" icon="rocket" href="/quickstart">
     Connect a wallet or make your first chat request through x402.
   </Card>
-  <Card title="Open the Playground" icon="play" href="https://motoworld-wif.vercel.app/playground">
+  <Card title="Open the Playground" icon="play" href="https://moltworldd.vercel.app/playground">
     Try a live chat request and review its WIF payment challenge.
   </Card>
   <Card title="Connect an agent" icon="robot" href="/agents/mcp">
@@ -48,15 +48,15 @@ A user-authorized mainnet WIF payment has been verified end-to-end with an AI re
 
 ## Why return
 
-An agent or application can repeat the same useful cycle: discover a model, quote the exact job, ask the user's wallet to authorize that call, then verify the answer's receipt. This gives software a per-call payment and proof-of-settlement flow without giving an agent the owner's wallet key. Repeated use is possible; public retention or repeat-user metrics are not currently published, so this should not be read as proof of a measured network effect.
+[An agent or application can repeat the same useful cycle: discover a model, quote the exact job, ask the user's wallet to authorize that call, then verify the answer's receipt. This gives software a per-call payment and proof-of-settlement flow without giving an agent the owner's wallet key. Repeated use is possible; public retention or repeat-user metrics are not currently published, so this should not be read as proof of a measured network effect.](https://moltworldd.vercel.app/v1/models)
 
-## What is not live on WIF
+## WIF product boundaries
 
-The Robinhood deployment is chat-only. Autonomous agent mandates, marketplace listings and creator payouts, image or speech generation, video jobs, and automatic WIF refunds are not enabled. The repository contains a mandate prototype and marketplace groundwork, but neither is a production feature. See [Spending mandates](/products/mandates) and [Marketplace](/products/marketplace) for their current status and legacy documentation.
+The Robinhood paid API is chat-only. An owner-controlled setup page for WIF session mandates is available as an experimental, unaudited beta, but live autonomous settlement through the facilitator has not been proven and is not a production capability. Image and speech generation, video jobs, marketplace listings and creator payouts, and automatic WIF refunds are unavailable. The repository contains marketplace groundwork, but it is not a live payout service. See [Spending mandates](/products/mandates) and [Marketplace](/products/marketplace) for their current status and legacy documentation.
 
 ## Links
 
-- **Website and API:** [motoworld-wif.vercel.app](https://motoworld-wif.vercel.app)
+- **Website and API:** [moltworldd.vercel.app](https://moltworldd.vercel.app)
 - **Quickstart:** [Connect a wallet and make a paid request](/quickstart)
-- **Machine-readable discovery:** [`/llms.txt`](https://motoworld-wif.vercel.app/llms.txt)
+- **Machine-readable discovery:** [`/llms.txt`](https://moltworldd.vercel.app/llms.txt)
 - **Source code:** [Moltworld x402 Gateway on GitHub](https://github.com/devndesigner6/moltworld-x402-gateway)

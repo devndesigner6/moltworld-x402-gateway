@@ -28,7 +28,7 @@ WIF amount = ceil(USD quote / guarded WIF/USD price snapshot, in 18-decimal base
 `POST /v1/quote` takes the same body you would send to the chat model, plus a `model` field. It is free and needs no wallet.
 
 ```bash
-curl -s https://motoworld-wif.vercel.app/v1/quote \
+curl -s https://moltworldd.vercel.app/v1/quote \
   -H 'Content-Type: application/json' \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hi"}],"max_tokens":200}'
 ```

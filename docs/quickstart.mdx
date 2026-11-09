@@ -11,13 +11,13 @@ You need a supported EVM wallet, WIF for the quoted payment, and a small amount 
 
 <Steps>
   <Step title="Connect and switch networks">
-    Open the [Moltworld Playground](https://motoworld-wif.vercel.app/playground), connect an injected or WalletConnect wallet, and switch to Robinhood Chain mainnet (`eip155:4663`).
+    Open the [Moltworld Playground](https://moltworldd.vercel.app/playground), connect an injected or WalletConnect wallet, and switch to Robinhood Chain mainnet (`eip155:4663`).
   </Step>
   <Step title="Choose a chat model and quote">
     Submit a chat body to get a free quote. The quote shows the USD estimate and exact WIF amount derived from the live Robinhood Uniswap v4 pool state and Chainlink ETH/USD feed, with chain freshness and active-liquidity checks.
 
     ```bash
-    curl -s https://motoworld-wif.vercel.app/v1/quote \
+    curl -s https://moltworldd.vercel.app/v1/quote \
       -H 'Content-Type: application/json' \
       -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hi"}],"max_tokens":200}'
     ```
@@ -41,7 +41,7 @@ const body = {
 };
 
 // Free preflight.
-const quote = await fetch("https://motoworld-wif.vercel.app/v1/quote", {
+const quote = await fetch("https://moltworldd.vercel.app/v1/quote", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({ model: "gpt-4o", ...body }),
@@ -54,30 +54,30 @@ console.log(await quote.json());
 // 3. Ask the injected EIP-1193 wallet to authorize ExactEvmScheme + Permit2.
 // 4. Retry the identical body with Payment-Signature.
 const res = await x402Client.fetch(
-  "https://motoworld-wif.vercel.app/v1/models/gpt-4o/chat/completions",
+  "https://moltworldd.vercel.app/v1/models/gpt-4o/chat/completions",
   { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) },
 );
 ```
 
-The WIF contract and all payment details come from the 402 challenge and [`GET /health`](https://motoworld-wif.vercel.app/health); do not hard-code a recipient or amount. Keep the request body byte-for-byte identical between the unpaid 402 request and the paid retry.
+The WIF contract and all payment details come from the 402 challenge and [`GET /health`](https://moltworldd.vercel.app/health); do not hard-code a recipient or amount. Keep the request body byte-for-byte identical between the unpaid 402 request and the paid retry.
 
 ## Agent mandates: experimental setup, settlement unverified
 
-An owner-driven wallet wizard is available at [WIF mandates](https://motoworld-wif.vercel.app/products/mandates). It can deploy the pinned contract, transfer WIF into its vault, arm a finite allowance, inspect state, revoke, and withdraw. The contract has no independent security audit; local Ganache tests do not validate Permit2/facilitator interoperability or a real mandate settlement. Start only with a small test amount and review every wallet transaction. The remote MCP remains keyless and cannot autonomously pay. Local autonomous payment requires a compatible stdio-MCP host and a separate session key; do not give agents the owner's wallet key. Marketplace listings/payouts, media endpoints, and automatic WIF refunds remain unavailable on Robinhood.
+An owner-driven wallet wizard is available at [WIF mandates](https://moltworldd.vercel.app/products/mandates). It can deploy the pinned contract, transfer WIF into its vault, arm a finite allowance, inspect state, revoke, and withdraw. The contract has no independent security audit; local Ganache tests do not validate Permit2/facilitator interoperability or a real mandate settlement. Start only with a small test amount and review every wallet transaction. The remote MCP remains keyless and cannot autonomously pay. Local autonomous payment requires a compatible stdio-MCP host and a separate session key; do not give agents the owner's wallet key. Marketplace listings/payouts, media endpoints, and automatic WIF refunds remain unavailable on Robinhood.
 
 ## Next
 
 <CardGroup cols={2}>
-  <Card title="Open the Playground" icon="play" href="https://motoworld-wif.vercel.app/playground">
+  <Card title="Open the Playground" icon="play" href="https://moltworldd.vercel.app/playground">
     Connect an injected wallet and authorize a chat call.
   </Card>
-  <Card title="Read machine-readable discovery" icon="code" href="https://motoworld-wif.vercel.app/llms.txt">
+  <Card title="Read machine-readable discovery" icon="code" href="https://moltworldd.vercel.app/llms.txt">
     See the current network, token, supported surface, and unsupported features.
   </Card>
-  <Card title="Experimental WIF mandate setup" icon="shield-check" href="https://motoworld-wif.vercel.app/products/mandates">
+  <Card title="Experimental WIF mandate setup" icon="shield-check" href="https://moltworldd.vercel.app/products/mandates">
     Owner-controlled contract flow; unaudited, and live autonomous settlement is unverified.
   </Card>
-  <Card title="WIF marketplace status" icon="store" href="https://motoworld-wif.vercel.app/products/marketplace">
+  <Card title="WIF marketplace status" icon="store" href="https://moltworldd.vercel.app/products/marketplace">
     Creator calls and payouts are disabled until payout controls and reconciliation are complete.
   </Card>
 </CardGroup>
