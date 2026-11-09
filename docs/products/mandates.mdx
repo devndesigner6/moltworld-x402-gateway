@@ -8,7 +8,7 @@ sidebarTitle: "WIF mandate beta"
 
 ## Robinhood Chain WIF setup
 
-Open the [WIF mandate setup page](https://motoworld-wif.vercel.app/products/mandates). It connects an injected owner wallet, checks the live gateway health fields, and verifies the pinned runtime bytecode before interacting with a contract. The owner explicitly confirms each separate deployment, WIF transfer, arm, revoke, or withdrawal in their wallet; the site never asks for a seed phrase or private key.
+Open the [WIF mandate setup page](https://moltworldd.vercel.app/products/mandates). It connects an injected owner wallet, checks the live gateway health fields, and verifies the pinned runtime bytecode before interacting with a contract. The owner explicitly confirms each separate deployment, WIF transfer, arm, revoke, or withdrawal in their wallet; the site never asks for a seed phrase or private key.
 
 The deployed contract is a narrow policy wallet: it fixes the owner, WIF token, Permit2, x402 exact proxy, and gateway pay-to. When armed, it restricts the delegated session key to a finite total Permit2 allowance, a per-call WIF maximum, and an expiry of at most seven days in the beta wizard. Revocation invalidates old session signatures and clears the Permit2 allowance. The WIF is transferred into the contract vault; the owner can withdraw only after the mandate is inactive.
 

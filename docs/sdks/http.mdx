@@ -8,7 +8,7 @@ On the current Robinhood deployment, use an x402 client that supports `exact` th
 ## 1. Quote (optional)
 
 ```bash
-curl -s https://motoworld-wif.vercel.app/v1/quote \
+curl -s https://moltworldd.vercel.app/v1/quote \
   -H 'Content-Type: application/json' \
   -d '{"model":"gpt-4o","messages":[{"role":"user","content":"Hi"}],"max_tokens":200}'
 ```
@@ -18,7 +18,7 @@ The response includes the USD quote and the quote-time WIF amount on `eip155:466
 ## 2. Get the challenge
 
 ```bash
-curl -si https://motoworld-wif.vercel.app/v1/models/gpt-4o/chat/completions \
+curl -si https://moltworldd.vercel.app/v1/models/gpt-4o/chat/completions \
   -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"Hi"}],"max_tokens":200}'
 ```
@@ -39,7 +39,7 @@ Use an x402 EVM client backed by an injected EIP-1193 wallet in the browser, or 
 Send the same body again with the encoded payment in `Payment-Signature`.
 
 ```bash
-curl -si https://motoworld-wif.vercel.app/v1/models/gpt-4o/chat/completions \
+curl -si https://moltworldd.vercel.app/v1/models/gpt-4o/chat/completions \
   -H 'Content-Type: application/json' \
   -H "Payment-Signature: $PAYMENT" \
   -d '{"messages":[{"role":"user","content":"Hi"}],"max_tokens":200}'

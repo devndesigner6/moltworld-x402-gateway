@@ -10,7 +10,7 @@ Both SDKs verify receipts automatically. In TypeScript, the result is `res.verif
     `Moltworld-Receipt` is base64url-encoded JSON.
   </Step>
   <Step title="Fetch the signing key">
-    Get the key whose `kid` matches the receipt from [`/.well-known/moltworld-receipts.json`](https://motoworld-wif.vercel.app/.well-known/moltworld-receipts.json). Keys are raw 32-byte Ed25519 public keys, base64-encoded.
+    Get the key whose `kid` matches the receipt from [`/.well-known/moltworld-receipts.json`](https://moltworldd.vercel.app/.well-known/moltworld-receipts.json). Keys are raw 32-byte Ed25519 public keys, base64-encoded.
   </Step>
   <Step title="Check the signature">
     Remove `sig`. Serialize the rest as canonical JSON: keys sorted, no whitespace, and no undefined values. Verify `sig` (base64url) over those bytes.
@@ -36,7 +36,7 @@ const canonical = (v: any): string =>
 
 export async function verify(header: string, requestBody: string, responseBytes: Uint8Array) {
   const receipt = JSON.parse(Buffer.from(header, "base64url").toString("utf8"));
-  const doc = await (await fetch("https://motoworld-wif.vercel.app/.well-known/moltworld-receipts.json")).json();
+  const doc = await (await fetch("https://moltworldd.vercel.app/.well-known/moltworld-receipts.json")).json();
   const raw = doc.keys.find((k: any) => k.kid === receipt.kid)?.publicKey;
   if (!raw) return false;
 
@@ -66,7 +66,7 @@ ok = check_receipt(receipt, public_key_b64, request=request_bytes, response=resp
 
 ## In the browser
 
-The [WIF Playground](https://motoworld-wif.vercel.app/playground) includes a receipt verifier that checks the signature and hashes with WebCrypto. Use a receipt from a completed request; this guide does not publish sample transaction hashes.
+The [WIF Playground](https://moltworldd.vercel.app/playground) includes a receipt verifier that checks the signature and hashes with WebCrypto. Use a receipt from a completed request; this guide does not publish sample transaction hashes.
 
 ## Later lookups
 

@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://motoworld-wif.vercel.app",
+      "url": "https://moltworldd.vercel.app",
       "description": "Live WIF API"
     }
   ],
