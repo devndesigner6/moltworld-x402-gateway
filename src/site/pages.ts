@@ -365,7 +365,7 @@ function home(c: Context) {
       <section class="hero">
         <div class="wrap hero-grid">
           <div class="hero-copy">
-            <h1 data-split>Every AI chat model, <em>paid per request.</em></h1>
+            <h1 data-split>Every AI model, <em>paid per request.</em></h1>
             <div class="cta-row" data-reveal style="--d:4">${btn("/playground", "Open Playground")}<span class="cmd"><b>npm i moltworld-sdk</b><button type="button" class="icon-btn" data-copy="npm i moltworld-sdk" aria-label="Copy install command">${icon("copy", 15)}</button></span></div>
           </div>
           <div class="hero-visual" data-clip><div class="world-fallback">${WORLD_FALLBACK}</div><canvas id="world" role="img" aria-label="Globe of payments settling between agents and models. Drag to spin, tap to send a request."></canvas></div>
@@ -394,7 +394,7 @@ function home(c: Context) {
       ${sec(`${secHead("Every kind of agent. <em>One chat payment path.</em>", arrowLink("/use-cases", "All use cases"))}<p class="note" data-reveal>These agent categories can use the live WIF chat endpoint. Image, voice, and video generation are not enabled on this payment rail.</p><div class="uc-grid" data-reveal>${agentTypes().map(agentCard).join("")}</div>`)}
       ${sec(robinhoodFaq())}
       ${ctaFinal("Stop managing keys. <em>Pay per call.</em>")}`;
-    return renderPage(c, { path: "/", title: "Moltworld | Every AI chat model, paid per request", description: "The pay-per-request chat gateway for AI. Eligible chat models are paid in WIF on Robinhood Chain through x402, with exact quotes and signed receipts.", body, data: catalogScript(chatModels) });
+    return renderPage(c, { path: "/", title: "Moltworld | Every AI model, paid per request", description: "The pay-per-request chat gateway for AI. Eligible chat models are paid in WIF on Robinhood Chain through x402, with exact quotes and signed receipts.", body, data: catalogScript(chatModels) });
   }
   const s = snippets();
   const body = `
