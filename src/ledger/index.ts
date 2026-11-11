@@ -143,9 +143,18 @@ export interface CompletionUpdate {
   receipt: unknown;
 }
 
-export async function completeRequest(id: string, u: CompletionUpdate): Promise<void> {
-  const q = await db();
-  await q.query(
+export interface CompletionCredit {
+  account: string;
+  kind: CreditKind;
+  amountMicro: number;
+  amountAtomic: string;
+  asset: CreditAsset;
+}
+
+export async function completeRequest(id: string, u: CompletionUpdate, credits: CompletionCredit[] = []): Promise<void> {
+  const database = await getDatabase();
+  await database.transaction(async (tx) => {
+  await tx.query(
     `UPDATE mw_requests SET status = 'completed', upstream_provider = $2, upstream_model = $3, upstream_cost_usd = $4,
        actual_price_micro = $5, rebate_micro = $6, response_sha256 = $7, response_status = $8,
        response_content_type = $9, response_body = $10, receipt = $11, updated_at = now()
@@ -164,6 +173,10 @@ export async function completeRequest(id: string, u: CompletionUpdate): Promise<
       JSON.stringify(u.receipt),
     ]
   );
+  for (const credit of credits) {
+    await addCredit(credit.account, credit.kind, credit.amountMicro, id, credit.amountAtomic, credit.asset, tx);
+  }
+  });
 }
 
 /** Records upstream details for a request whose payment is held (async jobs) without completing it. */
@@ -470,10 +483,11 @@ export async function addCredit(
   requestId: string,
   amountAtomic = String(amountMicro),
   asset: CreditAsset = { assetAddress: "", assetSymbol: "USDC", assetDecimals: 6, network: "legacy" },
+  tx?: Queryable,
 ): Promise<void> {
   if (amountMicro <= 0) return;
   if (!/^\d+$/.test(amountAtomic)) throw new Error("Credit atomic amount must be a non-negative integer string.");
-  const q = await db();
+  const q = await db(tx);
   await q.query(
     `INSERT INTO mw_credits (account, kind, amount_micro, amount_atomic, asset_address, asset_symbol, asset_decimals, network, request_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
@@ -512,13 +526,14 @@ export interface PayoutRecord {
 export async function createPayoutsFromCredits(kind: CreditKind, minMicro: number, asset?: CreditAsset, includeLegacyAlgorand = false): Promise<PayoutRecord[]> {
   const database = await getDatabase();
   return database.transaction(async (tx) => {
-    const due = await tx.query<{ account: string; total: any; total_atomic: string; asset_address: string; asset_symbol: string; asset_decimals: number; network: string }>(
+    const due = await tx.query<{ account: string; total: any; total_atomic: string; credit_ids: number[]; asset_address: string; asset_symbol: string; asset_decimals: number; network: string }>(
       `SELECT account, asset_address, asset_symbol, asset_decimals, network,
-              SUM(amount_micro) AS total, SUM(amount_atomic::numeric) AS total_atomic
-       FROM mw_credits WHERE kind = $1 AND payout_id IS NULL
+              SUM(amount_micro) AS total, SUM(amount_atomic::numeric) AS total_atomic, ARRAY_AGG(id) AS credit_ids
+       FROM (SELECT * FROM mw_credits WHERE kind = $1 AND payout_id IS NULL
          AND ($3::text IS NULL OR
            (asset_address = $3 AND asset_symbol = $4 AND asset_decimals = $5 AND network = $6) OR
            ($7::boolean AND asset_address = '' AND asset_symbol = 'USDC' AND asset_decimals = 6 AND network = 'legacy'))
+         FOR UPDATE SKIP LOCKED) locked_credits
        GROUP BY account, asset_address, asset_symbol, asset_decimals, network
        HAVING SUM(amount_micro) >= $2`,
       [kind, minMicro, asset?.assetAddress ?? null, asset?.assetSymbol ?? null, asset?.assetDecimals ?? null, asset?.network ?? null, includeLegacyAlgorand]
@@ -533,9 +548,8 @@ export async function createPayoutsFromCredits(kind: CreditKind, minMicro: numbe
         [id, row.account, kind, amount, String(row.total_atomic), row.asset_address, row.asset_symbol, row.asset_decimals, row.network]
       );
       await tx.query(
-        `UPDATE mw_credits SET payout_id = $1 WHERE kind = $2 AND account = $3 AND payout_id IS NULL
-         AND asset_address = $4 AND asset_symbol = $5 AND asset_decimals = $6 AND network = $7`,
-        [id, kind, row.account, row.asset_address, row.asset_symbol, row.asset_decimals, row.network]
+        `UPDATE mw_credits SET payout_id = $1 WHERE id = ANY($2::bigint[]) AND payout_id IS NULL`,
+        [id, row.credit_ids]
       );
       created.push(normalize(res.rows[0])!);
     }
@@ -574,6 +588,34 @@ export async function listPayouts(account?: string, limit = 100): Promise<Payout
     ? await q.query<PayoutRecord>(`SELECT * FROM mw_payouts WHERE account = $1 ORDER BY created_at DESC LIMIT $2`, [account, limit])
     : await q.query<PayoutRecord>(`SELECT * FROM mw_payouts ORDER BY created_at DESC LIMIT $1`, [limit]);
   return res.rows.map((r) => normalize(r)!);
+}
+
+export async function getPayout(id: string): Promise<PayoutRecord | undefined> {
+  const q = await db();
+  return normalize((await q.query<PayoutRecord>(`SELECT * FROM mw_payouts WHERE id = $1`, [id])).rows[0]);
+}
+
+export async function listUnsentPayouts(asset: CreditAsset): Promise<PayoutRecord[]> {
+  const q = await db();
+  const result = await q.query<PayoutRecord>(`SELECT * FROM mw_payouts
+    WHERE status <> 'sent' AND asset_symbol = $1 AND lower(asset_address) = lower($2) AND network = $3
+    ORDER BY created_at`, [asset.assetSymbol, asset.assetAddress, asset.network]);
+  return result.rows.map(row => normalize(row)!);
+}
+
+/** The caller verifies the transfer first. The unique transaction index prevents reuse. */
+export async function confirmWifPayout(id: string, txid: string): Promise<PayoutRecord> {
+  const database = await getDatabase();
+  return database.transaction(async tx => {
+    const payout = (await tx.query<PayoutRecord>(`SELECT * FROM mw_payouts WHERE id = $1 FOR UPDATE`, [id])).rows[0];
+    if (!payout || payout.asset_symbol !== "WIF") throw new Error("No such WIF payout.");
+    if (payout.status === "sent") {
+      if (payout.txid?.toLowerCase() !== txid.toLowerCase()) throw new Error("Payout already reconciled with a different transaction.");
+      return normalize(payout)!;
+    }
+    const result = await tx.query<PayoutRecord>(`UPDATE mw_payouts SET status = 'sent', txid = $2, last_error = NULL, updated_at = now() WHERE id = $1 RETURNING *`, [id, txid.toLowerCase()]);
+    return normalize(result.rows[0])!;
+  });
 }
 
 // ---------------------------------------------------------------------------

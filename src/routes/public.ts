@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { ROUNDS_PER_DAY } from "../mandates/index.js";
 import fs from "fs";
 import path from "path";
-import { config } from "../config.js";
+import { config, marketplaceEnabled } from "../config.js";
 import { defaultModelRegistry, getModelEndpoint, ModelDefinition } from "../models/registry.js";
 import { defaultProviderRegistry } from "../providers/index.js";
 import { validateBody } from "../middleware/validation.js";
@@ -98,6 +98,8 @@ export async function handleHealth(c: Context): Promise<Response> {
     pricing: { model: "cost_plus_per_request", margin_percent: Math.round(config.priceMargin * 100), min_price: `$${config.priceMinFloor}` },
     receipts: { kid: receiptSigner.kid, persistent_key: !receiptSigner.ephemeral, keys_url: `${config.publicDomain}/.well-known/moltworld-receipts.json` },
     payouts_enabled: config.paymentChain === "algorand" && !!payoutAccount(),
+    marketplace_enabled: marketplaceEnabled(),
+    creator_payout_mode: config.paymentChain === "robinhood" && marketplaceEnabled() ? "wallet_verified" : "legacy_or_disabled",
     uptime_seconds: Math.floor((Date.now() - startedAt) / 1000),
     timestamp: new Date().toISOString(),
   };

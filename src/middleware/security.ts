@@ -36,7 +36,7 @@ export async function securityHeadersMiddleware(c: Context, next: Next): Promise
   // Ensure x402 and receipt headers are exposed to CORS callers
   c.header(
     "Access-Control-Expose-Headers",
-    "Payment-Required, Payment-Response, Moltworld-Receipt, Moltworld-Request-Id, Moltworld-Quote, Moltworld-Replay, Moltworld-Refund, x-request-id"
+    "Payment-Required, Payment-Response, Moltworld-Receipt, Moltworld-Request-Id, Moltworld-Quote, Moltworld-Replay, Moltworld-Refund, Moltworld-Payment-Status, x-request-id"
   );
 }
 

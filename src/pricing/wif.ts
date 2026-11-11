@@ -219,7 +219,7 @@ export function snapshotFromOnchainState(input: OnchainWifPriceInput): WifPriceS
   };
 }
 
-async function createRobinhoodPublicClient() {
+export async function createRobinhoodPublicClient() {
   const { createPublicClient, fallback, http } = await import("viem");
   const urls = [...new Set([
     config.robinhoodRpcUrl,

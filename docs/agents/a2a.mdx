@@ -1,17 +1,16 @@
 ---
-title: "A2A model discovery"
-description: "Discover chat models enabled for WIF on Robinhood Chain through the A2A JSON-RPC endpoint. Paid inference still requires a caller-authorized x402 request."
-sidebarTitle: "A2A"
+title: "A2A (legacy)"
+description: "This page archives the original Moltworld A2A endpoint. It is not enabled on Robinhood WIF; use the remote MCP for current model discovery and quotes."
 ---
 
-Moltworld's A2A JSON-RPC endpoint on Robinhood Chain is for model discovery only. It lists chat models currently enabled for WIF and returns their paid x402 endpoint paths. It does not call paid models, request wallet signatures, or submit payments.
+<Warning>
+The A2A agent endpoint below belongs to the original deployment and is not a supported WIF integration. For Robinhood WIF model discovery and quotes, use the [remote MCP server](/agents/mcp). Paid calls still require a caller-side x402 signature.
+</Warning>
 
-- **Agent card:** [`/.well-known/agent-card.json`](https://moltworldd.vercel.app/.well-known/agent-card.json)
-- **JSON-RPC endpoint:** `POST https://moltworldd.vercel.app/a2a`
-- **Skill:** `find_models`
+The original Moltworld deployment exposed an A2A agent for catalog questions. These links and examples are retained as historical Algorand-era documentation and should not be used as a live WIF endpoint.
 
-<Note>
-  The USD reference price is not a WIF token amount. Exact WIF payment depends on the request body. Use `POST /v1/quote` for a free exact quote, then treat the chat endpoint's HTTP `402` `Payment-Required` challenge as authoritative. A paid call still needs caller-authorized x402 payment.
-</Note>
+- Legacy agent card: [`/.well-known/agent-card.json`](https://moltworld.xyz/.well-known/agent-card.json)
+- Legacy JSON-RPC endpoint: `POST https://moltworld.xyz/a2a`
+- Legacy skill: `find_models`
 
-For paid agent calls, use the [remote MCP server](/agents/mcp) to relay a caller-signed request, or use a compatible client that can authorize the x402 challenge. Image, voice, video, and marketplace payouts are not enabled on WIF. The on-chain mandate setup is experimental, and autonomous settlement has not been verified.
+The historical endpoint used A2A protocol version 1.0. It did not itself sign or pay for a model call; those calls went to a separate x402 endpoint.

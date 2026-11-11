@@ -16,6 +16,7 @@ import {
 import { currentRound } from "../chain/algod.js";
 import { microToUsdString, usdToMicroCeil } from "../pricing/index.js";
 import { apiError } from "../payments/gateway.js";
+import { readWifMandate } from "../payments/wif-mandate.js";
 
 const MESSAGE_MAX_AGE_S = 600;
 
@@ -174,12 +175,19 @@ export async function handleMandateRegister(c: Context): Promise<Response> {
 }
 
 export async function handleMandateGet(c: Context): Promise<Response> {
+  if (config.paymentChain === "robinhood") {
+    const address = c.req.param("id") ?? "";
+    if (!/^0x[0-9a-fA-F]{40}$/.test(address)) return apiError(c, 400, "validation_error", "Use the deployed WIF mandate contract address.");
+    try { return c.json({ mandate: await readWifMandate(address) }); }
+    catch (error: any) { return apiError(c, 422, "mandate_unavailable", error?.shortMessage ?? error?.message ?? "Could not verify the on-chain mandate."); }
+  }
   const mandate = await getMandate(c.req.param("id") ?? "");
   if (!mandate) return apiError(c, 404, "mandate_not_found", "No such mandate.");
   return c.json({ mandate: view(mandate, await mandateSpendLast24h(mandate.id)) });
 }
 
 export async function handleMandateList(c: Context): Promise<Response> {
+  if (config.paymentChain === "robinhood") return apiError(c, 400, "address_required", "Look up an owner-deployed WIF mandate at GET /v1/mandates/{contract-address}. Setup and revocation are signed in the owner's wallet at /products/mandates.");
   const owner = c.req.query("owner") ?? "";
   if (!algosdk.isValidAddress(owner)) return apiError(c, 400, "validation_error", "?owner=<address> is required.");
   const mandates = await listMandates(owner);

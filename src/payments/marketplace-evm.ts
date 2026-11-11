@@ -1,8 +1,26 @@
-import { recoverTypedDataAddress } from "viem";
+import { recoverTypedDataAddress, type TransactionReceipt } from "viem";
 import { config } from "../config.js";
 import { canonicalJson } from "../receipts/index.js";
 
 const ADDRESS = /^0x[0-9a-fA-F]{40}$/;
+
+export function validateWifPayoutReceipt(
+  receipt: TransactionReceipt,
+  latestBlock: bigint,
+  expected: { asset: string; sender: string; recipient: string; amountAtomic: string },
+): void {
+  if (receipt.status !== "success") throw new Error("Payout transaction failed.");
+  if (latestBlock < receipt.blockNumber + 1n) throw new Error("Wait for at least two payout confirmations.");
+  const matches = receipt.logs.filter(log =>
+    log.address.toLowerCase() === expected.asset.toLowerCase()
+    && log.topics[0] === "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef"
+    && log.topics[1]?.toLowerCase() === `0x${expected.sender.slice(2).toLowerCase().padStart(64, "0")}`
+    && log.topics[2]?.toLowerCase() === `0x${expected.recipient.slice(2).toLowerCase().padStart(64, "0")}`
+    && /^0x[0-9a-f]{64}$/i.test(log.data)
+    && BigInt(log.data) === BigInt(expected.amountAtomic)
+  );
+  if (matches.length !== 1) throw new Error("No unique matching WIF transfer from the merchant to this creator for the exact payout amount.");
+}
 
 export function creatorShareAtomic(grossAtomic: string, feePercent: number): string {
   if (!/^\d+$/.test(grossAtomic) || !Number.isInteger(feePercent) || feePercent < 0 || feePercent > 100) {

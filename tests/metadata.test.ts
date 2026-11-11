@@ -43,6 +43,20 @@ describe("Robinhood machine-readable discovery", () => {
     expect(profile.payment.permit2).toBe(false);
   });
 
+  it("advertises marketplace checkout only when explicitly enabled", () => {
+    const previous = process.env.ROBINHOOD_MARKETPLACE_ENABLED;
+    process.env.ROBINHOOD_MARKETPLACE_ENABLED = "true";
+    try {
+      const profile = discoveryProfile({ paymentChain: "robinhood", networkCaip2: "eip155:4663", paymentAssetAddress: "0x5173b8eA6923c2d40267890D45C46a3480954773", paymentAssetSymbol: "WIF", paymentAssetDecimals: 18 });
+      expect(profile.description).toContain("reviewed creator APIs");
+      expect(profile.description).toContain("experimental");
+      expect(profile.payment.unsupportedFeatures).not.toContain("marketplace");
+    } finally {
+      if (previous === undefined) delete process.env.ROBINHOOD_MARKETPLACE_ENABLED;
+      else process.env.ROBINHOOD_MARKETPLACE_ENABLED = previous;
+    }
+  });
+
   it("declares the real HTML quickstart route", () => {
     expect(SITE_PATHS).toContain("/quickstart");
   });

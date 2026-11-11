@@ -34,6 +34,47 @@ beforeEach(async () => {
 });
 
 describe("WIF marketplace safeguards", () => {
+  const creditAsset = { assetAddress: "0x5173b8eA6923c2d40267890D45C46a3480954773", assetSymbol: "WIF", assetDecimals: 18, network: "eip155:46630" };
+  async function requestForCompletion() {
+    await ledger.createRequest({ id: "req_atomic", paymentHash: "atomic-test", kind: "market", resource: "/v1/market/weather-api/call", payer: account.address, payTo: PAY_TO, network: creditAsset.network, asset: creditAsset.assetAddress, amountMicro: 1000, amountAtomic: "1000000000000000000", paymentFlow: "authorization", requestSha256: "0".repeat(64) });
+    return { responseSha256: "1".repeat(64), responseStatus: 200, responseContentType: "application/json", responseBody: new Uint8Array([123, 125]), receipt: { id: "req_atomic" } };
+  }
+
+  it("rolls completion back when creator credit cannot be recorded", async () => {
+    const completion = await requestForCompletion();
+    await expect(ledger.completeRequest("req_atomic", completion, [{ account: account.address, kind: "creator", amountMicro: 850, amountAtomic: "invalid", asset: creditAsset }])).rejects.toThrow(/atomic amount/);
+    expect((await ledger.getRequest("req_atomic"))?.status).toBe("verified");
+  });
+
+  it("records completion and exact creator credit together and makes retries idempotent", async () => {
+    const completion = await requestForCompletion();
+    const credits = [{ account: account.address, kind: "creator" as const, amountMicro: 850, amountAtomic: "850000000000000000", asset: creditAsset }];
+    await ledger.completeRequest("req_atomic", completion, credits);
+    await ledger.completeRequest("req_atomic", completion, credits);
+    expect((await ledger.getRequest("req_atomic"))?.status).toBe("completed");
+    expect((await ledger.creatorEarnings(account.address, creditAsset.assetAddress, creditAsset.network)).unpaidAtomic).toBe("850000000000000000");
+  });
+
+  it("batches concurrent credits once, retains old unpaid batches and rejects transfer reuse", async () => {
+    await requestForCompletion();
+    await ledger.addCredit(account.address, "creator", 850, "req_atomic", "850000000000000000", creditAsset);
+    const batches = (await Promise.all([ledger.createPayoutsFromCredits("creator", 1, creditAsset), ledger.createPayoutsFromCredits("creator", 1, creditAsset)])).flat();
+    expect(batches).toHaveLength(1);
+    const first = batches[0];
+    const query = await db.getDatabase();
+    await query.query(`INSERT INTO mw_payouts (id, account, kind, amount_micro, amount_atomic, asset_address, asset_symbol, asset_decimals, network, status)
+      SELECT 'newer_' || i, $1, 'creator', 1, '1', $2, 'WIF', 18, $3, 'sent' FROM generate_series(1, 1001) i`, [account.address, creditAsset.assetAddress, creditAsset.network]);
+    expect((await ledger.listUnsentPayouts(creditAsset)).map(p => p.id)).toEqual([first.id]);
+    const hash = `0x${"ab".repeat(32)}`;
+    expect((await ledger.confirmWifPayout(first.id, hash)).status).toBe("sent");
+    expect((await ledger.confirmWifPayout(first.id, hash.toUpperCase())).txid).toBe(hash);
+    await expect(ledger.confirmWifPayout(first.id, `0x${"cd".repeat(32)}`)).rejects.toThrow(/different transaction/);
+    await query.query(`INSERT INTO mw_payouts (id, account, kind, amount_micro, amount_atomic, asset_address, asset_symbol, asset_decimals, network, status)
+      VALUES ('second', $1, 'creator', 1, '1', $2, 'WIF', 18, $3, 'pending')`, [account.address, creditAsset.assetAddress, creditAsset.network]);
+    await expect(ledger.confirmWifPayout("second", hash)).rejects.toThrow();
+    expect((await ledger.getPayout("second"))?.status).toBe("pending");
+  });
+
   it("verifies the EIP-712 domain and configured chain, and rejects nonce or domain replay", async () => {
     const typed = evm.marketplaceListingTypedData(listing);
     const signature = await account.signTypedData(typed as any);
@@ -150,5 +191,20 @@ describe("WIF marketplace safeguards", () => {
     expect(market.robinhoodMarketplaceEnabled()).toBe(false);
     process.env.ROBINHOOD_MARKETPLACE_ENABLED = "true";
     expect(market.robinhoodMarketplaceEnabled()).toBe(true);
+  });
+
+  it("verifies exact WIF payouts and rejects a failed, young or wrong-recipient receipt", () => {
+    const asset = creditAsset.assetAddress;
+    const recipient = account.address;
+    const transfer = {
+      status: "success", blockNumber: 100n,
+      logs: [{ address: asset, topics: ["0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef", "0x" + PAY_TO.slice(2).padStart(64, "0"), "0x" + recipient.slice(2).toLowerCase().padStart(64, "0")], data: "0x" + (850n).toString(16).padStart(64, "0") }],
+    };
+    const expected = { asset, sender: PAY_TO, recipient, amountAtomic: "850" };
+    expect(() => evm.validateWifPayoutReceipt(transfer as any, 101n, expected)).not.toThrow();
+    expect(() => evm.validateWifPayoutReceipt({ ...transfer, status: "reverted" } as any, 101n, expected)).toThrow(/failed/);
+    expect(() => evm.validateWifPayoutReceipt(transfer as any, 100n, expected)).toThrow(/confirmations/);
+    expect(() => evm.validateWifPayoutReceipt(transfer as any, 101n, { ...expected, recipient: PAY_TO })).toThrow(/transfer/);
+    expect(() => evm.validateWifPayoutReceipt(transfer as any, 101n, { ...expected, amountAtomic: "851" })).toThrow(/transfer/);
   });
 });

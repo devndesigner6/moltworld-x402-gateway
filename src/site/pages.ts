@@ -1,5 +1,5 @@
 import type { Context, Hono } from "hono";
-import { config } from "../config.js";
+import { config, marketplaceEnabled } from "../config.js";
 import { defaultModelRegistry } from "../models/registry.js";
 import { quoteRequest, type ValidatedRequest } from "../pricing/index.js";
 import { icon } from "./icons.js";
@@ -255,7 +255,7 @@ function meterDemo(): string {
 function splitDemo(): string {
   const s = share();
   const dash = ((2 * Math.PI * 58 * s) / 100).toFixed(1);
-  if (config.paymentChain === "robinhood") return `<div class="split-wrap" data-reveal aria-label="Marketplace is disabled on Robinhood Chain; no creator split or payout is live">
+  if (config.paymentChain === "robinhood" && !marketplaceEnabled()) return `<div class="split-wrap" data-reveal aria-label="Marketplace is disabled on Robinhood Chain; no creator split or payout is live">
       <svg class="split-ring" viewBox="0 0 150 150" role="img" aria-label="Marketplace off; no live earnings"><circle class="bg" cx="75" cy="75" r="58"/><text x="75" y="84" text-anchor="middle">OFF</text></svg>
       <div class="split-legend"><span><i></i>Creator payouts</span><span><i class="o"></i>Disabled on WIF</span></div>
     </div>`;
@@ -542,7 +542,7 @@ function robinhoodFaq(): string {
   const qa: Array<[string, string]> = [
     ["What is live on Robinhood production?", "Real chat calls paid in WIF on Robinhood Chain, with an exact quote, x402 authorization, and a signed receipt when the call completes."],
     ["Which clients can connect?", "An EVM wallet in the Playground, the TypeScript or Python SDK, remote MCP for discovery, or a local MCP server configured with its own EVM key file. curl can request a free quote or unpaid 402 terms; it does not sign a payment."],
-    ["Are media, mandates, or marketplace calls available?", "No. Robinhood production is limited to chat calls. Image, voice, video, mandates, marketplace payouts, automatic refunds, and on-chain spending caps are not active surfaces here."],
+    ["Are media, mandates, or marketplace calls available?", marketplaceEnabled() ? "WIF marketplace calls and verified creator payout reconciliation are enabled. Owner-funded agent mandates are an experimental beta. Image, voice, video and automatic refunds remain unavailable." : "Robinhood production supports chat calls. Owner-funded mandates are experimental. Marketplace checkout, media and automatic refunds remain disabled."],
     ["Where do WIF amounts come from?", "The gateway returns a quote-bound WIF amount in the 402 payment requirements using the live price snapshot. The displayed USD value is a quote, not a mark-to-market balance."],
     ["Can I see example receipts or hashes?", "No fabricated transaction values or hashes are displayed. Verify a receipt from a completed real request in the Playground."],
   ];
@@ -587,7 +587,7 @@ function products(c: Context) {
     const claim: Record<string, string> = {
       "/products/gateway": "Chat gateway, <em>paid per call in WIF.</em>",
       "/products/mandates": "Experimental mandate setup, <em>owner-controlled.</em>",
-      "/products/marketplace": "Marketplace <em>disabled on this rail.</em>",
+      "/products/marketplace": marketplaceEnabled() ? "Sell your API <em>per WIF-paid call.</em>" : "Marketplace <em>disabled on this rail.</em>",
     };
     const [receiptsLink] = builtIn();
     const body = `
@@ -607,7 +607,7 @@ function products(c: Context) {
             ["receipt", `A <a href="${receiptsLink.href}">signed receipt</a> can tie a completed WIF chat response to its exact request.`],
             ["wallet", "The caller authorizes the exact quote-bound WIF amount in the wallet."],
             ["shield", "The gateway fails closed when the WIF quote or wallet payment cannot be verified."],
-            ["tag", "Image, voice, video, mandates settlement, marketplace listings, and automatic refunds are not live here."],
+            ["tag", marketplaceEnabled() ? "Marketplace checkout and verified creator payout reconciliation are enabled. Mandates remain experimental; media and automatic refunds are unavailable." : "Image, voice, video, mandates settlement, marketplace listings, and automatic refunds are not live here."],
           ])}
         </div>
       `)}
@@ -667,7 +667,7 @@ function gateway(c: Context) {
         ["tag", "Every eligible chat request is quoted from the body. <code>POST /v1/quote</code> is free."],
         ["layers", `The USD quote uses the configured upstream rate plus ${margin()}%, with a $${config.priceMinFloor} minimum; the 402 binds the WIF amount to its price snapshot.`],
         ["wallet", "The caller authorizes the exact WIF amount with an EVM wallet on Robinhood Chain."],
-        ["shield", "Only chat checkout is enabled on this rail; media, marketplace, and automatic refunds are not live."],
+        ["shield", marketplaceEnabled() ? "Chat and approved marketplace APIs support WIF checkout. Media and automatic refunds are unavailable." : "Only chat checkout is enabled on this rail; media, marketplace, and automatic refunds are not live."],
         ["receipt", "A completed paid chat response can include a signed Moltworld receipt."],
       ])}`)}
       ${sec(`${secHead("Endpoints.")}
@@ -894,6 +894,28 @@ await revokeMandate("${origin}", owner, mandateId);`, "ts"],
 }
 
 function marketplace(c: Context) {
+  if (config.paymentChain === "robinhood" && marketplaceEnabled()) {
+    const input = (name: string, label: string, type = "text") => `<label>${label}<input name="${name}" type="${type}" required autocomplete="off"></label>`;
+    const body = `${pageHero({ crumbs: [["Product", "/products"]], title: `Sell your API in WIF. <em>Keep ${share()}%.</em>` })}
+      <div data-wif-market-root>
+      ${sec(`<div class="actions" data-market-wallets></div><p class="note" role="status" data-market-status>Loading the live marketplace…</p>
+        <p class="note">Each successful call credits ${share()}% of its exact WIF payment to the creator. Listings require review. Creator payouts are authorized by the merchant wallet and marked sent after on-chain verification.</p>`)}
+      ${sec(`<div class="grid-2"><div class="card"><h2>Call an API</h2>
+        <label>Approved listing<select name="listing"></select></label><p class="note" data-listing-description></p>
+        <label>Request JSON<textarea name="request-body" spellcheck="false"></textarea></label>
+        <label>Maximum USD quote per call<input name="max-usd" type="number" value="0.25" min="0.001" step="0.001"></label>
+        <div class="actions"><button class="btn btn-ghost" type="button" data-market-refresh>Refresh listings</button><button class="btn btn-ghost" type="button" data-market-quote>Get WIF quote</button><button class="btn" type="button" data-market-pay>Pay and call</button></div></div>
+        <form class="card" data-earnings-form><h2>Creator earnings</h2>${input("earnings-address", "Creator wallet address")}
+        <button class="btn btn-ghost" type="submit">Check earnings and payouts</button><p class="note">Unpaid and paid amounts use exact WIF base units. A pending payout remains unpaid until its transfer is verified.</p></form></div>`)}
+      ${sec(`<form class="card" data-listing-form><h2>Submit your API</h2>
+        <div class="grid-2"><div>${input("slug", "Listing slug")}${input("name", "API name")}${input("upstream-url", "Public HTTPS endpoint", "url")}</div>
+        <div>${input("description", "Description")}${input("price-usd", "USD price per call")}<label>Example request JSON<textarea name="input-example" spellcheck="false"></textarea></label></div></div>
+        <p class="note">Your wallet signs the exact listing terms. Save the returned signing secret and use it to verify Moltworld's forwarded-call signatures. The operator reviews the endpoint before it accepts payments.</p>
+        <div class="actions"><button class="btn" type="submit">Sign and submit listing</button><button class="btn btn-ghost" type="button" data-listing-status>Check listing status</button></div></form>`)}
+      ${sec(`<div class="card"><h2>Response and receipt</h2><pre style="max-width:100%;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere" data-market-result></pre></div>`)}
+      </div>${ctaFinal("APIs paid <em>per call in WIF.</em>")}`;
+    return renderPage(c, { path: "/products/marketplace", title: "WIF marketplace", description: "Discover creator APIs, pay per call in WIF, and verify exact creator earnings and wallet-authorized payouts.", body, data: payConfigScript() });
+  }
   if (config.paymentChain === "robinhood") {
     const body = `
       ${pageHero({ crumbs: [["Product", "/products"]], title: "Creator payouts are <em>not enabled here.</em>", ctas: `${btn("/products", "Product overview")}${btn("/solutions/api-creators", "For API sellers", "ghost")}`, visual: splitDemo() })}
@@ -1056,7 +1078,7 @@ function developers(c: Context) {
     const s = snippets();
     const body = `
       ${pageHero({ title: "Build on the <em>WIF x402 rail.</em>", ctas: `${btn("/quickstart", "WIF Quickstart")}${btn("/v1/models", "Model catalog", "ghost")}`, visual: codeTabs("dev", [["mcp", "MCP", s.mcp, "json"], ["ts", "TypeScript", s.ts], ["py", "Python", s.py], ["curl", "curl", s.curl]]) })}
-      ${sec(`${secHead("First call <em>in minutes.</em>")}${stepsList(["Connect an EVM wallet on Robinhood Chain.", "Hold WIF and native ETH for any first-use Permit2 approval.", "Request a free quote and inspect the 402 challenge.", "Call an enabled chat model; media, marketplace, and autonomous mandate settlement are not live on this rail."])}`)}
+      ${sec(`${secHead("First call <em>in minutes.</em>")}${stepsList(["Connect an EVM wallet on Robinhood Chain.", "Hold WIF and native ETH for any first-use Permit2 approval.", "Request a free quote and inspect the 402 challenge.", marketplaceEnabled() ? "Call an enabled chat model or approved marketplace API. Owner-funded agent mandates remain experimental." : "Call an enabled chat model; media, marketplace, and autonomous mandate settlement are not live on this rail."])}`)}
       ${sec(`${secHead("Tools.")}${linkCards([{ title: "TypeScript SDK", href: `${docs()}/sdks/typescript`, icon: "package" }, { title: "Python SDK", href: `${docs()}/sdks/python`, icon: "package" }, { title: "Remote MCP", href: `${docs()}/agents/mcp`, icon: "plug" }, { title: "Chat API reference", href: `${docs()}/api-reference/introduction`, icon: "braces" }, { title: "Playground", href: "/playground", icon: "play" }, { title: "Gateway ledger", href: "/stats", icon: "pulse" }])}`)}
       ${sec(`${secHead("Machine-readable <em>by default.</em>")}<div class="table-wrap" data-reveal><table class="stack"><thead><tr><th>Endpoint</th><th>Contents</th></tr></thead><tbody>${[["/llms.txt", "The service, written for language models"], ["/v1/models", "Chat catalog with upstream ids and starting estimates"], ["/.well-known/x402", "x402 resource descriptor"], ["/.well-known/moltworld-receipts.json", "Receipt signing keys"], ["/mcp", "Remote MCP for discovery and caller-signed relay"], ["/health", "Readiness and network"]].map(([p, d]) => `<tr><td data-label="Endpoint"><a href="${p}"><code>${config.publicDomain}${p}</code></a></td><td data-label="Contents">${d}</td></tr>`).join("")}</tbody></table></div>`)}
       ${ctaFinal("Inspect and authorize <em>every payment.</em>", btn("/playground", "Open Playground"))}`;
@@ -1158,7 +1180,7 @@ await fetch("/v1/quote", {
         ["bolt", "Live paid surface: POST /v1/models/{model}/chat/completions."],
         ["receipt", "Successful responses include Moltworld-Request-Id and a signed Moltworld-Receipt."],
         ["check", "Use /v1/models and /v1/quote for discovery and preflight; neither takes payment."],
-        ["tag", "Image, voice, video, marketplace, automatic refunds, and agent mandates are not live on this rail."],
+        ["tag", marketplaceEnabled() ? "Approved marketplace APIs support WIF checkout. Agent mandates are experimental; media and automatic refunds are unavailable." : "Image, voice, video, marketplace, automatic refunds, and agent mandates are not live on this rail."],
       ])}
     `, { id: "developer" })}
     ${sec(`
@@ -1178,14 +1200,14 @@ function workflowTitle(u: (typeof WORKFLOWS)[number]): string {
   const status: Record<string, string> = {
     "agent-allowance": " (experimental)",
     "content-pipelines": " (not live on WIF)",
-    "agent-commerce": " (disabled)",
+    "agent-commerce": marketplaceEnabled() ? "" : " (disabled)",
     "team-budgets": " (not live on WIF)",
   };
   return `${u.title}${status[u.slug] ?? ""}`;
 }
 
 function audienceTitle(a: (typeof AUDIENCES)[number]): string {
-  return config.paymentChain === "robinhood" && a.label === "API sellers" ? "API sellers (marketplace disabled)" : a.label;
+  return config.paymentChain === "robinhood" && !marketplaceEnabled() && a.label === "API sellers" ? "API sellers (marketplace disabled)" : a.label;
 }
 
 function solutions(c: Context) {
@@ -1338,6 +1360,7 @@ function solutionsDevelopers(c: Context) {
 }
 
 function solutionsCreators(c: Context) {
+  if (config.paymentChain === "robinhood" && marketplaceEnabled()) return c.redirect("/products/marketplace");
   if (config.paymentChain === "robinhood") {
     const body = `${pageHero({ crumbs: [["Solutions", "/solutions"]], title: "API sellers can prepare now. <em>Payouts are not live on WIF.</em>", ctas: `${btn("/products/marketplace", "Marketplace status")}${btn("/developers", "Developer hub", "ghost")}`, visual: splitDemo() })}${sec(`${secHead("Billing <em>is staged, not enabled.</em>")}${facts([["agent", "WIF currently supports caller-authorized chat only."], ["layers", "Marketplace listing, forwarding, reconciliation, and settlement are not verified on this rail."], ["wallet", "No creator payout, refund, buyback, or flywheel mechanism is represented as live."], ["globe", "The split visual is schematic only; it is not an earnings record."]])}`)}${sec(`${secHead("Prepare an integration <em>without submitting it.</em>")}${codeBlock("// Marketplace is disabled on Robinhood Chain.\n// Do not submit listings or assume a payout.", "sh")}`)}${ctaFinal("Keep your API ready <em>for a future rail.</em>", btn("/products/marketplace", "View marketplace status"))}`;
     return renderPage(c, { path: "/solutions/api-creators", title: "API sellers", description: "Marketplace and creator payouts are disabled on the Robinhood Chain WIF deployment.", body });
@@ -1537,9 +1560,9 @@ function workflowPage(slug: string) {
     const meta = WORKFLOWS.find((u) => u.slug === slug)!;
     const detail = useCaseDetails()[slug];
     const robinhood = config.paymentChain === "robinhood";
-    const problem = robinhood ? "This workflow is illustrative on the Robinhood Chain deployment. WIF checkout is currently verified for chat only; media, marketplace, and autonomous settlement claims below are not live." : detail.problem;
-    const how = robinhood ? ["Use the Playground or a compatible EVM x402 client for an enabled chat model.", "Review the exact USD quote and quote-bound WIF amount before authorizing.", "Keep the signed receipt returned by a completed paid chat request.", "Treat mandate setup as experimental and marketplace actions as disabled."] : detail.how;
-    const code = robinhood ? "// WIF deployment: chat-only paid surface\n// Request a free quote, then authorize the exact x402 EVM challenge.\n// Media, marketplace, and autonomous mandate settlement are not live." : detail.code;
+    const problem = robinhood ? "This workflow is illustrative on the Robinhood Chain deployment. Chat settlement has live proof. Marketplace checkout uses approved real APIs when enabled; media and autonomous mandate settlement claims remain unverified." : detail.problem;
+    const how = robinhood ? ["Use the Playground or a compatible EVM x402 client for an enabled chat model.", "Review the exact USD quote and quote-bound WIF amount before authorizing.", "Keep the signed receipt returned by a completed paid chat request.", marketplaceEnabled() ? "Use approved marketplace listings for paid API calls; keep agent mandates experimental until live settlement is verified." : "Treat mandate setup as experimental and marketplace actions as disabled."] : detail.how;
+    const code = robinhood ? "// WIF deployment: chat-only paid surface\n// Request a free quote, then authorize the exact x402 EVM challenge.\n// Marketplace: /v1/market (when enabled). Agent mandates remain experimental." : detail.code;
     const body = `
       ${pageHero({ crumbs: [["Solutions", "/solutions"]], title: esc(meta.title), ctas: detail.products.map(([label, href], i) => btn(href, esc(label), i ? "ghost" : "primary")).join("") })}
       ${sec(`
@@ -1610,7 +1633,7 @@ function usage(c: Context) {
       `)}
       ${sec(`
         ${secHead("Marketplace listings.")}
-        <p class="note">Marketplace listings, creator balances, and payouts are disabled on WIF. No listing volume is reported.</p>
+        <p class="note">${marketplaceEnabled() ? 'Marketplace listings and creator balances are available on the marketplace page. Payouts are marked sent after on-chain verification. Separate marketplace volume metrics are not published.' : 'Marketplace listings, creator balances, and payouts are disabled on WIF. No listing volume is reported.'}</p>
       `)}
     ` : `<div id="facilitatorOnly" hidden>
       ${sec(`

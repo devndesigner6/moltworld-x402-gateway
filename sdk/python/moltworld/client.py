@@ -363,6 +363,8 @@ class MoltworldClient:
         except ValueError:
             data = raw.decode("utf-8", "replace")
         if status >= 400:
+            if lower.get("moltworld-payment-status") == "uncharged":
+                self.spent_micro -= paid
             err = data.get("error", {}) if isinstance(data, dict) else {}
             raise MoltworldError(err.get("message", f"HTTP {status}"), status, err.get("code"), data)
         receipt = None

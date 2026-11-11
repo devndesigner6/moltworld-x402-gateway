@@ -57,7 +57,7 @@ export function validateCreatorUrl(raw: string): URL {
   if (url.protocol !== "https:") throw new Error("upstream_url must use https.");
   if (url.port && url.port !== "443") throw new Error("upstream_url must use the default HTTPS port.");
   if (url.username || url.password) throw new Error("upstream_url must not contain credentials.");
-  if (net.isIP(url.hostname) || url.hostname === "localhost" || url.hostname.endsWith(".local") || url.hostname.endsWith(".internal")) {
+  if (net.isIP(url.hostname) || url.hostname.startsWith("[") || url.hostname === "localhost" || url.hostname.endsWith(".local") || url.hostname.endsWith(".internal")) {
     throw new Error("upstream_url must use a public hostname.");
   }
   return url;

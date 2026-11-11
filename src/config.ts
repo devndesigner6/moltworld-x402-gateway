@@ -172,8 +172,13 @@ export const config: GatewayConfig = {
   upstreamTimeoutMs: num("UPSTREAM_TIMEOUT_MS", 25000),
 };
 
+export function marketplaceEnabled(): boolean {
+  return config.paymentChain !== "robinhood" || process.env.ROBINHOOD_MARKETPLACE_ENABLED === "true";
+}
+
 /** Fail closed when the selected mainnet rail is missing its safety prerequisites. */
 export function assertProductionConfig(cfg: GatewayConfig = config): void {
+  if (!Number.isInteger(cfg.marketplaceFeePercent) || cfg.marketplaceFeePercent < 0 || cfg.marketplaceFeePercent > 100) throw new Error("MARKETPLACE_FEE_PERCENT must be an integer from 0 to 100.");
   if (!cfg.isMainnet) return;
   const missing: string[] = [];
   if (cfg.paymentChain === "robinhood") {

@@ -26,11 +26,11 @@
     },
     {
       "name": "Mandates",
-      "description": "Legacy Algorand mandate routes; unavailable on the Robinhood WIF deployment."
+      "description": "WIF GET lookup verifies a pinned owner-deployed contract. Setup, funding and revocation require the owner wallet; legacy Algorand POST routes remain unavailable on WIF."
     },
     {
       "name": "Marketplace",
-      "description": "WIF marketplace routes are disabled; listings, creator reconciliation, and payouts are not available."
+      "description": "When ROBINHOOD_MARKETPLACE_ENABLED=true, approved real APIs support WIF checkout, exact creator credits and wallet-authorized verified payouts."
     },
     {
       "name": "Service"
@@ -303,7 +303,7 @@
           "Marketplace"
         ],
         "summary": "Call a listing",
-        "description": "Disabled on Robinhood WIF: this route returns `503 marketplace_disabled`. WIF listings, creator earnings reconciliation, and payouts are not a supported service.\n\nCalls a creator's API. Priced by the listing; charged after the creator's API returns 2xx. The response body is the creator's response.",
+        "description": "Available when ROBINHOOD_MARKETPLACE_ENABLED=true. Listings require creator EIP-712 signatures and operator review. WIF payouts require merchant-wallet authorization and on-chain reconciliation.\n\nCalls a creator's API. Priced by the listing; charged after the creator's API returns 2xx. The response body is the creator's response.",
         "security": [
           {
             "x402": []
@@ -749,7 +749,8 @@
                   "type": "object",
                   "properties": {
                     "mandate": {
-                      "$ref": "#/components/schemas/Mandate"
+                      "type": "object",
+                      "description": "Live on-chain WIF policy or legacy mandate, according to the deployment rail."
                     }
                   }
                 }
@@ -763,8 +764,7 @@
             "$ref": "#/components/responses/Unavailable"
           }
         },
-        "deprecated": true,
-        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate EVM session-mandate contract is an undeployed, unaudited prototype, not a production feature."
+        "description": "On WIF, id is the owner-deployed EIP-1271 contract address. Verifies pinned bytecode, token, Permit2, proxy and recipient and returns live policy and balance. An inactive or missing contract does not prove paid settlement."
       }
     },
     "/v1/mandates/{id}/revoke": {
@@ -860,7 +860,7 @@
           }
         },
         "deprecated": true,
-        "description": "Disabled on Robinhood WIF: this route returns `503 marketplace_disabled`. WIF listings, creator earnings reconciliation, and payouts are not a supported service."
+        "description": "Available when ROBINHOOD_MARKETPLACE_ENABLED=true. Listings require creator EIP-712 signatures and operator review. WIF payouts require merchant-wallet authorization and on-chain reconciliation."
       }
     },
     "/v1/market/listings": {
@@ -869,7 +869,7 @@
           "Marketplace"
         ],
         "summary": "Create a listing",
-        "description": "Disabled on Robinhood WIF: this route returns `503 marketplace_disabled`. WIF listings, creator earnings reconciliation, and payouts are not a supported service.\n\nSigned by the creator's wallet. Listings are reviewed before they go live.",
+        "description": "Available when ROBINHOOD_MARKETPLACE_ENABLED=true. Listings require creator EIP-712 signatures and operator review. WIF payouts require merchant-wallet authorization and on-chain reconciliation.\n\nSigned by the creator's wallet. Listings are reviewed before they go live.",
         "requestBody": {
           "required": true,
           "content": {
@@ -953,7 +953,7 @@
           }
         },
         "deprecated": true,
-        "description": "Disabled on Robinhood WIF: this route returns `503 marketplace_disabled`. WIF listings, creator earnings reconciliation, and payouts are not a supported service."
+        "description": "Available when ROBINHOOD_MARKETPLACE_ENABLED=true. Listings require creator EIP-712 signatures and operator review. WIF payouts require merchant-wallet authorization and on-chain reconciliation."
       }
     },
     "/health": {

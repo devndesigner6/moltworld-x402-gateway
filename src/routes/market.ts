@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import algosdk from "algosdk";
 import crypto from "crypto";
-import { config } from "../config.js";
+import { config, marketplaceEnabled } from "../config.js";
 import {
   createListing,
   creatorEarnings,
@@ -15,14 +15,16 @@ import { verifyOwnerMessage } from "../mandates/index.js";
 import { microToUsdString, usdToMicroCeil } from "../pricing/index.js";
 import { getWifPriceSnapshot, usdMicroToTokenAtomic } from "../pricing/wif.js";
 import { sha256Hex } from "../receipts/index.js";
-import { apiError, isGatewayReady } from "../payments/gateway.js";
+import { apiError, isGatewayReady, paymentHeaderOf } from "../payments/gateway.js";
+import { evmAcceptedFromHeader } from "../payments/evm-identity.js";
+import { getWifQuoteChallenge, matchesWifQuoteRequirement, rememberWifQuoteChallenge, WIF_CHAT_MAX_TIMEOUT_SECONDS } from "../payments/wif-challenges.js";
 import { getPaymentState, setPaymentState } from "../payments/state.js";
-import { verifyCreatorListingSignature } from "../payments/marketplace-evm.js";
+import { marketplaceListingTypedData, verifyCreatorListingSignature } from "../payments/marketplace-evm.js";
 import { safeCreatorFetch, SafeResponse, validateCreatorUrl } from "../market/safeFetch.js";
 
 /** The WIF marketplace is deliberately opt-in and remains disabled by default. */
 export function robinhoodMarketplaceEnabled(): boolean {
-  return config.paymentChain !== "robinhood" || process.env.ROBINHOOD_MARKETPLACE_ENABLED === "true";
+  return marketplaceEnabled();
 }
 
 export const marketplaceEnabledMiddleware: MiddlewareHandler = async (c, next) => {
@@ -78,9 +80,12 @@ function validEvmAddress(value: unknown): value is string {
 export async function handleListingCreate(c: Context): Promise<Response> {
   const blocked = disabled(c);
   if (blocked) return blocked;
-  const body: any = await c.req.json().catch(() => null);
+  const raw = await c.req.text();
+  if (Buffer.byteLength(raw) > MAX_BODY_BYTES) return apiError(c, 413, "validation_error", "Listing body exceeds 64 KiB.");
+  const body: any = (() => { try { return JSON.parse(raw); } catch { return null; } })();
   const listing = body?.listing;
-  if (!listing || typeof body.creator_sig !== "string") {
+  const draft = c.req.path.endsWith("/draft");
+  if (!listing || (!draft && typeof body.creator_sig !== "string")) {
     return apiError(c, 400, "validation_error", "Body must be { listing: {...}, creator_sig }.");
   }
   if (listing.action !== "list") return apiError(c, 400, "validation_error", "listing.action must be 'list'.");
@@ -131,9 +136,15 @@ export async function handleListingCreate(c: Context): Promise<Response> {
       nonce: listing.nonce,
       issued_at: listing.issued_at,
     };
+    if (draft) {
+      const typedData = marketplaceListingTypedData(signedListing);
+      return c.json({ listing: { ...listing, creator, name: signedListing.name, description: signedListing.description, price_usd: rawPrice }, typed_data: JSON.parse(JSON.stringify(typedData, (_key, value) => typeof value === "bigint" ? value.toString() : value)) });
+    }
     if (!(await verifyCreatorListingSignature(signedListing, body.creator_sig))) {
       return apiError(c, 401, "invalid_signature", "creator_sig must be a valid EIP-712 signature for this domain, Robinhood chain, listing and nonce.");
     }
+  } else if (draft) {
+    return apiError(c, 400, "unsupported_operation", "Typed listing drafts are available on the WIF rail.");
   } else if (!verifyOwnerMessage(listing, body.creator_sig, listing.creator)) {
     return apiError(c, 401, "invalid_signature", "creator_sig must sign the canonical JSON of `listing` with the creator's key.");
   }
@@ -206,7 +217,7 @@ export async function handleCreatorEarnings(c: Context): Promise<Response> {
     paid_out_amount_atomic: earnings.paidAtomic,
     payout_threshold: `$${config.creatorPayoutMinUsd}`,
     // The WIF rail has no payout/refund signer here. Credits remain manual-review balances.
-    payout_mode: config.paymentChain === "robinhood" ? "manual_review" : "algorand_worker",
+    payout_mode: config.paymentChain === "robinhood" ? "wallet_verified" : "algorand_worker",
     manual_payout_required: config.paymentChain === "robinhood",
     payouts: payouts.map((p) => ({ id: p.id, amount_usd_quote: microToUsdString(p.amount_micro), amount_atomic: p.amount_atomic, asset: p.asset_symbol, status: p.status, txid: p.txid, at: p.created_at })),
   });
@@ -236,14 +247,30 @@ export const prepareMarketRequest: MiddlewareHandler = async (c, next) => {
 
   let wifPrice;
   let amountAtomic = String(listing.price_micro);
+  let quoteId: string | undefined;
+  const requestSha256 = sha256Hex(rawBody);
+  const paymentHeader = paymentHeaderOf(c);
   if (config.paymentChain === "robinhood") {
+    if (paymentHeader) {
+      const accepted = evmAcceptedFromHeader(paymentHeader);
+      const challenge = typeof accepted?.extra?.quoteId === "string"
+        ? getWifQuoteChallenge(accepted.extra.quoteId, c.req.path, requestSha256) : undefined;
+      if (!challenge) return apiError(c, 409, "wif_quote_expired", "The WIF quote is unavailable for this exact request. No payment was taken; request a fresh quote.");
+      if (challenge.amountMicro !== listing.price_micro || !matchesWifQuoteRequirement(accepted, challenge, {
+        network: config.networkCaip2, asset: config.paymentAssetAddress, payTo: config.payToAddress,
+        symbol: config.paymentAssetSymbol, decimals: config.paymentAssetDecimals, maxTimeoutSeconds: WIF_CHAT_MAX_TIMEOUT_SECONDS,
+      })) return apiError(c, 409, "wif_quote_mismatch", "Signed terms do not match the original listing quote. No payment was taken.");
+      wifPrice = challenge.wifPrice;
+      amountAtomic = challenge.amountAtomic;
+      quoteId = challenge.quoteId;
+    } else {
     try {
       wifPrice = await getWifPriceSnapshot();
-      // Bind the exact micro-USD listing price to the exact WIF base-unit amount
-      // in PaymentState; gateway.recordRequest rejects any facilitator mismatch.
       amountAtomic = usdMicroToTokenAtomic(listing.price_micro, BigInt(wifPrice.effectivePriceUsdScaled18), config.paymentAssetDecimals);
+      quoteId = newId("wq");
     } catch (err: any) {
       return apiError(c, 503, "wif_price_unavailable", `Cannot safely quote WIF right now: ${err?.message ?? String(err)}. No payment was taken.`);
+    }
     }
   }
   setPaymentState(c, {
@@ -252,15 +279,19 @@ export const prepareMarketRequest: MiddlewareHandler = async (c, next) => {
     resource: `/v1/market/${listing.slug}/call`,
     listing,
     rawBody,
-    requestSha256: sha256Hex(rawBody),
+    requestSha256,
     amountMicro: listing.price_micro,
     amountAtomic,
     wifPrice,
+    quoteId,
     // Authorization means creator work runs before settlement; only 2xx may settle.
     paymentFlow: "authorization",
   });
   c.header("Moltworld-Quote", microToUsdString(listing.price_micro));
-  return next();
+  await next();
+  if (!paymentHeader && quoteId && wifPrice && c.res.status === 402 && c.res.headers.has("payment-required")) {
+    rememberWifQuoteChallenge({ quoteId, route: c.req.path, requestSha256, amountMicro: listing.price_micro, amountAtomic, wifPrice });
+  }
 };
 
 export function signForCreator(secret: string, timestamp: string, requestId: string, body: Uint8Array): string {

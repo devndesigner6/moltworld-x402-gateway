@@ -17,7 +17,7 @@ const stubHdWalletNodeImports: Plugin = {
 
 rmSync("vendor", { recursive: true, force: true });
 await build({
-  entryPoints: { three: "three/webgpu", typegpu: "typegpu", pay: "web/pay.ts", mandate: "web/mandate.ts" },
+  entryPoints: { three: "three/webgpu", typegpu: "typegpu", pay: "web/pay.ts", mandate: "web/mandate.ts", market: "web/market.ts" },
   bundle: true,
   splitting: true,
   format: "esm",

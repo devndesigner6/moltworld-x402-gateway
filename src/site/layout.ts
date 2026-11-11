@@ -1,7 +1,7 @@
 import crypto from "crypto";
 import fs from "fs";
 import type { Context } from "hono";
-import { assertProductionConfig, config } from "../config.js";
+import { assertProductionConfig, config, marketplaceEnabled } from "../config.js";
 import { wordmark } from "./brand.js";
 import { icon } from "./icons.js";
 import { agentTypes } from "./agents.js";
@@ -123,8 +123,8 @@ function header(path: string): string {
 function footer(): string {
   const docs = config.docsUrl;
   const robinhood = config.paymentChain === "robinhood";
-  const activeProducts = PRODUCTS.map((p) => robinhood && p.label === "Mandates" ? { ...p, label: "Mandates (beta)" } : robinhood && p.label === "Marketplace" ? { ...p, label: "Marketplace (disabled)" } : p);
-  const activeAudiences = AUDIENCES.map((a) => robinhood && a.label === "API sellers" ? { ...a, label: "API sellers (marketplace disabled)" } : a);
+  const activeProducts = PRODUCTS.map((p) => robinhood && p.label === "Mandates" ? { ...p, label: "Mandates (beta)" } : robinhood && !marketplaceEnabled() && p.label === "Marketplace" ? { ...p, label: "Marketplace (disabled)" } : p);
+  const activeAudiences = AUDIENCES.map((a) => robinhood && !marketplaceEnabled() && a.label === "API sellers" ? { ...a, label: "API sellers (marketplace disabled)" } : a);
   const githubUrl = config.paymentChain === "robinhood" ? "https://github.com/devndesigner6/moltworld-x402-gateway" : "https://github.com/hackcat29/moltworld-x402";
   const developerLinks: Array<readonly [string, string]> = config.paymentChain === "robinhood"
     ? [["Developer hub", "/developers"], ["Documentation", docs], ["Quickstart", `${docs}/quickstart`], ["API reference", `${docs}/api-reference/introduction`], ["Playground", "/playground"], ["Live network", "/stats"], ["llms.txt", "/llms.txt"], ["GitHub", githubUrl]]
@@ -214,7 +214,7 @@ export function renderPage(c: Context, opts: PageOptions): Response {
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="${origin}/og.png">
 </head>
-<body data-origin="${origin}" data-explorer="${config.paymentChain === "robinhood" ? (config.isMainnet ? "https://robinhoodchain.blockscout.com" : "https://explorer.testnet.chain.robinhood.com") : config.isMainnet ? "https://lora.algokit.io/mainnet" : "https://lora.algokit.io/testnet"}" data-world-src="${asset("world.js")}" data-flow-src="${asset("flow.js")}" data-three-src="${asset("vendor/three.js")}" data-tgpu-src="${asset("vendor/typegpu.js")}" data-pay-src="${asset("vendor/pay.js")}" data-mandate-src="${asset("vendor/mandate.js")}">
+<body data-origin="${origin}" data-explorer="${config.paymentChain === "robinhood" ? (config.isMainnet ? "https://robinhoodchain.blockscout.com" : "https://explorer.testnet.chain.robinhood.com") : config.isMainnet ? "https://lora.algokit.io/mainnet" : "https://lora.algokit.io/testnet"}" data-world-src="${asset("world.js")}" data-flow-src="${asset("flow.js")}" data-three-src="${asset("vendor/three.js")}" data-tgpu-src="${asset("vendor/typegpu.js")}" data-pay-src="${asset("vendor/pay.js")}" data-mandate-src="${asset("vendor/mandate.js")}" data-market-src="${asset("vendor/market.js")}">
   <a class="skip" href="#main">Skip to content</a>
   ${header(opts.path)}
   <main id="main">

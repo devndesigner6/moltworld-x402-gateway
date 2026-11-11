@@ -54,6 +54,12 @@ type WalletContext = {
   payTo: Address;
 };
 
+export async function waitForWifTransaction(client: Pick<WalletContext["publicClient"], "waitForTransactionReceipt">, hash: Hex) {
+  const receipt = await client.waitForTransactionReceipt({ hash, confirmations: 2 });
+  if (receipt.status !== "success") throw new Error(`Transaction ${hash} reverted. The requested mandate change was not confirmed.`);
+  return receipt;
+}
+
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
@@ -232,7 +238,7 @@ export function mountWifMandateSetup(root: HTMLElement) {
       args: [ctx.account, WIF, PERMIT2, EXACT_PROXY, payTo],
     } as any);
     setStatus(root, `Deployment submitted: ${hash}. Waiting for finality…`);
-    const receipt = await ctx.publicClient.waitForTransactionReceipt({ hash });
+    const receipt = await waitForWifTransaction(ctx.publicClient, hash);
     if (!receipt.contractAddress) throw new Error(`Deployment receipt ${hash} has no contract address.`);
     const address = getAddress(receipt.contractAddress);
     mandateInput.value = address;
@@ -257,7 +263,7 @@ export function mountWifMandateSetup(root: HTMLElement) {
     if (amount > BigInt(String(balance))) throw new Error("Wallet WIF balance is below the transfer amount.");
     if (!window.confirm(`Transfer ${formatUnits(amount, 18)} WIF from ${ctx.account} to mandate ${address}?\n\nToken contract: ${WIF}\nThis is a real WIF transfer. The owner can withdraw it only after revoking the mandate.`)) return;
     const hash = await ctx.walletClient.writeContract({ address: WIF, abi: erc20Abi, functionName: "transfer", args: [address, amount] } as any);
-    await ctx.publicClient.waitForTransactionReceipt({ hash });
+    await waitForWifTransaction(ctx.publicClient, hash);
     setStatus(root, `WIF funding confirmed: ${hash}. Refresh mandate state before arming.`);
   }));
 
@@ -274,10 +280,10 @@ export function mountWifMandateSetup(root: HTMLElement) {
     if (!Number.isInteger(days) || days < 1 || days > 7) throw new Error("Experimental beta mandate expiry is limited to 1 to 7 days.");
     const balance = BigInt(String(await ctx.publicClient.readContract({ address, abi: WIF_MANDATE_ARTIFACT.abi as any, functionName: "tokenBalance" })));
     if (totalCap > balance || totalCap === (1n << 256n) - 1n) throw new Error("Total cap must be finite and no greater than the WIF already held by the mandate.");
-    const expiry = BigInt(Math.floor(Date.now() / 1000) + days * 86_400);
+    const expiry = (await ctx.publicClient.getBlock()).timestamp + BigInt(days * 86_400);
     if (!window.confirm(`Arm mandate ${address} for agent ${agent}?\n\nWIF: ${WIF}\nFixed pay-to: ${ctx.payTo}\nPer-call maximum: ${formatUnits(perCall, 18)} WIF\nFinite aggregate Permit2 allowance: ${formatUnits(totalCap, 18)} WIF\nExpiry: ${days} days\n\nThe contract will approve Permit2 for this finite amount. You can revoke later; old unused signatures are epoch-invalidated.`)) return;
     const hash = await ctx.walletClient.writeContract({ address, abi: WIF_MANDATE_ARTIFACT.abi as any, functionName: "arm", args: [agent, perCall, expiry, totalCap] } as any);
-    await ctx.publicClient.waitForTransactionReceipt({ hash });
+    await waitForWifTransaction(ctx.publicClient, hash);
     setStatus(root, `Mandate armed on-chain: ${hash}. Refresh to confirm the live cap and expiry.`);
     await refresh();
   }));
@@ -288,7 +294,7 @@ export function mountWifMandateSetup(root: HTMLElement) {
     const address = await ensureMandate(ctx, mandateInput.value);
     if (!window.confirm(`Revoke mandate ${address}?\n\nThe owner wallet will disable the session, advance its epoch, and set its Permit2 allowance to zero. Confirm only in your wallet after reviewing the transaction.`)) return;
     const hash = await ctx.walletClient.writeContract({ address, abi: WIF_MANDATE_ARTIFACT.abi as any, functionName: "revoke" } as any);
-    await ctx.publicClient.waitForTransactionReceipt({ hash });
+    await waitForWifTransaction(ctx.publicClient, hash);
     setStatus(root, `Revocation confirmed: ${hash}. Reading inactive state and zero allowance…`);
     await refresh();
   }));
@@ -307,7 +313,7 @@ export function mountWifMandateSetup(root: HTMLElement) {
     if (amount > balance) throw new Error("Withdrawal amount exceeds the mandate balance.");
     if (!window.confirm(`Withdraw ${formatUnits(amount, 18)} WIF from ${address} back to owner ${ctx.account}?\n\nThis is a real token transfer. Review the call in your wallet.`)) return;
     const hash = await ctx.walletClient.writeContract({ address, abi: WIF_MANDATE_ARTIFACT.abi as any, functionName: "withdraw", args: [amount] } as any);
-    await ctx.publicClient.waitForTransactionReceipt({ hash });
+    await waitForWifTransaction(ctx.publicClient, hash);
     setStatus(root, `Withdrawal confirmed: ${hash}.`);
     await refresh();
   }));

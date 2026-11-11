@@ -42,6 +42,8 @@ import {
   handleOpsListingReview,
   handleOpsListings,
   handleOpsPayouts,
+  handleOpsWifPayoutPrepare,
+  handleOpsWifPayoutConfirm,
   handleOpsRefundRetry,
   handleOpsRefunds,
   requireAdmin,
@@ -84,6 +86,7 @@ export function createApp(): { app: Hono; init: () => Promise<void> } {
         "Moltworld-Quote",
         "Moltworld-Replay",
         "Moltworld-Refund",
+        "Moltworld-Payment-Status",
         "x-request-id",
       ],
       maxAge: 86400,
@@ -113,12 +116,11 @@ export function createApp(): { app: Hono; init: () => Promise<void> } {
     if (config.paymentChain === "robinhood") return apiError(c, 503, "migration_incomplete", "This feature is still Algorand-specific and is disabled on the Robinhood WIF rail.");
     return next();
   };
-  app.use("/v1/mandates", algorandOnly);
-  app.use("/v1/mandates/*", algorandOnly);
+  const mandateRail: MiddlewareHandler = (c, next) => c.req.method === "GET" ? next() : algorandOnly(c, next);
+  app.use("/v1/mandates", mandateRail);
+  app.use("/v1/mandates/*", mandateRail);
   app.use("/v1/ops/refunds", algorandOnly);
   app.use("/v1/ops/refunds/*", algorandOnly);
-  app.use("/v1/ops/payouts", algorandOnly);
-  app.use("/v1/ops/payouts/*", algorandOnly);
 
   // Legacy Algorand spending mandates remain disabled on the Robinhood payment rail.
   app.post("/v1/mandates/draft", handleMandateDraft);
@@ -132,6 +134,7 @@ export function createApp(): { app: Hono; init: () => Promise<void> } {
   app.use("/v1/market/*", marketplaceEnabledMiddleware);
   app.get("/v1/market", handleMarketList);
   app.post("/v1/market/listings", handleListingCreate);
+  app.post("/v1/market/listings/draft", handleListingCreate);
   app.get("/v1/market/listings/:slug", handleListingGet);
   app.get("/v1/market/creators/:address/earnings", handleCreatorEarnings);
 
@@ -140,6 +143,8 @@ export function createApp(): { app: Hono; init: () => Promise<void> } {
   app.get("/v1/ops/refunds", handleOpsRefunds);
   app.post("/v1/ops/refunds/:id/retry", handleOpsRefundRetry);
   app.get("/v1/ops/payouts", handleOpsPayouts);
+  app.post("/v1/ops/payouts/prepare", handleOpsWifPayoutPrepare);
+  app.post("/v1/ops/payouts/:id/confirm", handleOpsWifPayoutConfirm);
   app.get("/v1/ops/listings", handleOpsListings);
   app.post("/v1/ops/listings/:id/review", handleOpsListingReview);
 

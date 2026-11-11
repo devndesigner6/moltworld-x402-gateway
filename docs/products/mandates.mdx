@@ -26,6 +26,12 @@ This prints the public address and stores the private session key locally at `~/
 
 **Important limitation:** deployment, local unit tests, and contract simulations are not evidence that Primer accepts this EIP-1271 Permit2 wrapper on Robinhood Chain. Do not treat the mandate as live-autonomous until a user-authorized small WIF payment succeeds end-to-end and produces a verified response and receipt. Independent contract review is still required.
 
+## Verify the actual contract and payment
+
+`GET /v1/mandates/{contract-address}` reads Robinhood Chain directly. It verifies the pinned runtime, WIF token, Permit2, exact proxy and gateway recipient, then reports the owner, agent, active/expired state, per-call cap, remaining allowance and balance. Legacy Algorand registration and revocation endpoints are not used by WIF contracts.
+
+With the local MCP environment configured, run `pnpm exec tsx scripts/checkWifMandate.ts` for a read-only check. Adding `--pay` submits one real WIF-paid GPT request using the owner's armed contract and the local session key. It requires a verified receipt and prints the actual settlement transaction. Keep the owner wallet's private key out of the agent configuration.
+
 ## Legacy Algorand documentation
 
 The following LogicSig/USDC instructions describe the original Algorand deployment only. They do not work on the Robinhood WIF rail.

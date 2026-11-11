@@ -371,7 +371,7 @@ export const SITE_JS = String.raw`
         out.replaceChildren(
           el("div", { class: "note", text: body.name + ": " + (body.payment_flow === "authorization" ? "charged after the answer" : "charged first, refunded if it fails") }),
           el("div", { class: "big-price", text: q.formattedPrice }),
-          kv([["Payment amount", q.amountAtomic ? fmtTokenAtomic(q.amountAtomic, q.assetDecimals, q.assetSymbol) : undefined], ["Units", units], ["Upstream cost", "$" + q.upstreamCostUsd.toFixed(6) + " (" + q.costSource + ")"], ["Margin", q.marginPercent + "%"], ["Quoted USD micro-units", String(q.microUsdc)], ["Endpoint", "POST " + body.endpoint]])
+          kv([["Payment amount", q.amountAtomic ? fmtTokenAtomic(q.amountAtomic, q.decimals, q.symbol) : undefined], ["Units", units], ["Upstream cost", "$" + q.upstreamCostUsd.toFixed(6) + " (" + q.costSource + ")"], ["Margin", q.marginPercent + "%"], ["Quoted USD micro-units", String(q.microUsdc)], ["Endpoint", "POST " + body.endpoint]])
         );
       } catch { if (mine === quoteSeq) out.replaceChildren(errorBox("Network error.")); } finally { btn.disabled = false; }
     }
@@ -812,6 +812,12 @@ export const SITE_JS = String.raw`
   }
 
   const mandateRoot = document.querySelector("[data-wif-mandate-root]");
+  const marketRoot = document.querySelector("[data-wif-market-root]");
+  if (marketRoot && document.body.dataset.marketSrc) {
+    import(document.body.dataset.marketSrc).then(mod => mod.mountWifMarketplace(marketRoot)).catch(error => {
+      marketRoot.querySelector("[data-market-status]").textContent = "Marketplace could not load: " + (error?.message || String(error));
+    });
+  }
   if (mandateRoot && document.body.dataset.mandateSrc) {
     import(document.body.dataset.mandateSrc)
       .then((mod) => mod.mountWifMandateSetup(mandateRoot))

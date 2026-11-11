@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 import type { GatewayConfig } from "../config.js";
-import { config } from "../config.js";
+import { config, marketplaceEnabled } from "../config.js";
 import { defaultModelRegistry, getModelEndpoint, getModelDiscoveryDescription } from "../models/registry.js";
 import { quoteRequest, referenceRequest } from "../pricing/index.js";
 
@@ -24,9 +24,10 @@ export interface DiscoveryProfile {
 /** Machine-readable service facts must follow the selected payment rail. */
 export function discoveryProfile(cfg: Pick<GatewayConfig, "paymentChain" | "networkCaip2" | "paymentAssetAddress" | "paymentAssetSymbol" | "paymentAssetDecimals">): DiscoveryProfile {
   if (cfg.paymentChain === "robinhood") {
+    const market = process.env.ROBINHOOD_MARKETPLACE_ENABLED === "true";
     return {
       title: "Moltworld x402 Gateway | WIF Chat",
-      description: "Moltworld supports chat-only requests paid per call in WIF through x402 on Robinhood Chain. Each call is authorized by the user's EIP-1193 wallet; agent mandates and marketplace payments are not enabled.",
+      description: market ? "Moltworld supports chat and reviewed creator APIs paid per call in WIF through x402 on Robinhood Chain using EIP-1193 wallets. Owner-funded agent mandates are experimental; real mandate settlement remains unverified." : "Moltworld supports chat-only requests paid per call in WIF through x402 on Robinhood Chain using EIP-1193 wallets. Agent mandate setup is experimental; marketplace payments are disabled.",
       tags: ["moltworld", "ai-inference", "chat", "wif", "robinhood-chain", "x402", "exact-evm", "permit2"],
       payment: {
         scheme: "exact",
@@ -37,7 +38,7 @@ export function discoveryProfile(cfg: Pick<GatewayConfig, "paymentChain" | "netw
         tokenStandard: "ERC-20",
         permit2: true,
         supportedModalities: ["chat"],
-        unsupportedFeatures: ["image", "voice", "video", "agent mandates", "marketplace", "automatic refunds"],
+        unsupportedFeatures: ["image", "voice", "video", "agent mandates", ...(market ? [] : ["marketplace"]), "automatic refunds"],
       },
     };
   }
@@ -131,9 +132,9 @@ export function handleLlmsTxt(c: Context): Response {
           "Token standard: WIF ERC-20.",
           "Permit2: the exact 402 challenge may require a first-use WIF approval to Permit2; that approval is a separate wallet transaction and needs native ETH for gas.",
           "Wallets: browser checkout supports an injected EIP-1193 wallet; WalletConnect is available when the deployment configures a Reown project ID. Each chat call requires the user wallet to authorize the exact quote-bound payment.",
-          "Supported now: chat model requests only.",
-          "Not enabled now: image, voice, video, agent mandates, marketplace listings/payouts, and automatic WIF refunds.",
-          "Planned, not live: agent mandate/delegated spending. Do not treat local budgets or remote MCP discovery as an on-chain mandate.",
+          marketplaceEnabled() ? "Supported now: chat and approved marketplace APIs; creator payouts use merchant-wallet transfers with on-chain reconciliation." : "Supported now: chat model requests only. Marketplace is disabled.",
+          "Not enabled now: image, voice, video and automatic WIF refunds.",
+          "Experimental: owner-funded EIP-1271 agent mandates. Deploy, fund and arm from /products/mandates; read policy at GET /v1/mandates/{contract-address}. Real mandate settlement remains unverified. Local budgets and remote MCP discovery are not an on-chain mandate.",
         ]
       : [
           `Facilitator: ${config.facilitatorUrl} (legacy Algorand deployment).`,
@@ -172,7 +173,7 @@ export function handleLlmsTxt(c: Context): Response {
     `- [Quote](${origin}/v1/quote): POST { model, ...body } for the exact price.`,
     `- [Receipt keys](${origin}/.well-known/moltworld-receipts.json): Ed25519 keys that sign Moltworld receipts.`,
     `- [Public stats](${origin}/v1/stats): Ledger metrics with on-chain transaction ids.`,
-    ...(robinhood ? [] : [`- [Legacy marketplace](${origin}/v1/market): Creator APIs on the legacy Algorand rail.`]),
+    ...(robinhood ? marketplaceEnabled() ? [`- [Marketplace](${origin}/v1/market): Approved creator APIs with quote-bound WIF payments.`, `- [Owner mandate setup](${origin}/products/mandates): Experimental local-agent setup.`] : [] : [`- [Legacy marketplace](${origin}/v1/market): Creator APIs on the legacy Algorand rail.`]),
     "",
     "## Paid model endpoints",
     "",

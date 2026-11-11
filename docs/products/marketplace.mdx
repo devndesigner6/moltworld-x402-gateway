@@ -1,99 +1,46 @@
 ---
-title: "Legacy Algorand marketplace"
-description: "Historical Algorand listing and payout instructions. WIF marketplace listings, creator earnings, reconciliation, and payouts remain disabled."
-sidebarTitle: "Legacy marketplace"
-tag: "Legacy"
-deprecated: true
+title: "WIF marketplace"
+description: "List a real HTTPS API, receive exact WIF creator credits, and reconcile wallet-authorized payouts on Robinhood Chain."
 ---
 
-> **Not live on the WIF deployment:** The marketplace is disabled by default. WIF listing-signature, quote, and exact creator-credit code is staged, but the payout verification/reconciliation flow and operating terms are not complete. Do not submit listings or assume a creator payout will occur. The instructions below describe the legacy Algorand marketplace only.
+Open the [marketplace](https://moltworldd.vercel.app/products/marketplace), connect an EVM wallet and submit your HTTPS POST API. Your wallet signs the exact listing terms. The operator reviews the endpoint before buyers can pay.
 
-Anyone with an Algorand wallet can list an HTTPS API. Moltworld handles the 402 challenge, payment, receipts and payouts. Creators receive 85% of each paid call.
+The default creator share is 85% of each exact WIF payment. The other 15% goes to the gateway. The listing's USD price is converted to WIF from the guarded live pool/oracle snapshot. The server retains that challenge while the buyer signs.
 
-## How a call works
+## Buyer flow
 
-1. A buyer sends `POST /v1/market/{slug}/call` and pays the listing's fixed price through x402.
-2. Moltworld forwards the body to your `upstream_url` with a signature you can check.
-3. Your API answers. If it answers with a 2xx status, the payment settles and the buyer gets your response and a receipt.
-4. If your API is unreachable or returns an error, the payment is never settled and the buyer is not charged.
+1. Select an approved listing and enter its real request JSON.
+2. Request a free WIF quote and set the maximum USD quote per call.
+3. Authorize the exact WIF payment in your wallet. First use may need a finite WIF approval to Permit2 and native ETH for gas.
+4. The gateway forwards the request to the creator. A successful creator response proceeds to settlement.
+5. Receive the API result and a signed receipt binding the exact payment to request and response hashes.
 
-Your share is paid out in batched on-chain USDC transfers once it reaches $1.
+Local MCP agents can use `moltworld_market_call`. Hosted MCP relays caller-signed payments. An owner-armed mandate can supply the local session signer within its token, recipient, allowance, per-call and expiry policy.
 
-## Create a listing
+## Creator authentication
 
-The listing is signed with the creator's wallet, so only the owner of the address can list under it.
+The creation response includes a signing secret once. Store it on your API server. It is not a wallet private key and is not included in public listing responses.
 
-```ts
-import algosdk from "algosdk";
-import { signOwnerMessage } from "moltworld-sdk";
+Verify `X-Moltworld-Timestamp`, `X-Moltworld-Request-Id` and `X-Moltworld-Signature` on every forwarded call. The signature is base64url HMAC-SHA256 over the timestamp, request ID and SHA-256 hash of the raw body, separated by periods. Reject stale requests and reused request IDs before irreversible work.
 
-const creator = algosdk.mnemonicToSecretKey(process.env.CREATOR_MNEMONIC!);
-const listing = {
-  action: "list",
-  creator: creator.addr.toString(),
-  slug: "weather-now",
-  name: "Weather now",
-  description: "Current conditions for a latitude and longitude.",
-  price_usd: 0.01,
-  upstream_url: "https://api.example.com/weather",
-  input_example: { lat: 52.37, lon: 4.9 },
-  issued_at: Math.floor(Date.now() / 1000),
-};
+Endpoints must use public HTTPS on port 443. Redirects, IP-literal hosts and private DNS destinations are rejected. Creator HTML and scripts are returned as plain text. Responses are limited to 2 MiB.
 
-const res = await fetch("https://moltworld.xyz/v1/market/listings", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({ listing, creator_sig: signOwnerMessage(listing, creator.sk) }),
-});
-const { signing_secret } = await res.json();
-```
+## Earnings and real payouts
 
-<Warning>
-`signing_secret` is shown once. Store it on your server: you need it to check that calls came from Moltworld.
-</Warning>
+The gateway completes the buyer request and creates the creator credit in one database transaction. Credits use exact WIF base units. A completed-request replay does not create another credit.
 
-Rules:
+Check `GET /v1/market/creators/{creator-address}/earnings` for amounts and payout status. A reserved payout remains unpaid until its on-chain transfer is verified.
 
-- `slug`: 3 to 48 characters of `a-z`, `0-9` and `-`.
-- `name`: up to 80 characters. `description`: 10 to 1000.
-- `upstream_url`: a public HTTPS address. Private and internal addresses are refused.
-- `issued_at`: within 10 minutes of server time.
+The merchant wallet authorizes creator transfers. The gateway never holds its private key. Operators prepare a batch, send its exact transaction once, then confirm the mined hash. Verification checks Robinhood Chain, success, two confirmations, WIF, merchant sender, creator recipient and exact amount. One transfer cannot reconcile two batches.
 
-New listings are reviewed before they go live. Their status is `pending` until then.
+## Operator API
 
-## Check calls from Moltworld
+Configure `ADMIN_TOKEN` in Render. Operator requests use an Authorization Bearer header.
 
-Each forwarded call has these headers:
+- `GET /v1/ops/listings?status=pending` lists submissions.
+- `POST /v1/ops/listings/{id}/review` accepts `status` of `approved`, `rejected` or `suspended`.
+- `POST /v1/ops/payouts/prepare` reserves unpaid credits and returns exact transaction instructions plus existing outstanding batches.
+- Send each transfer from the configured merchant wallet. Inspect wallet history before resending an uncertain submission.
+- `POST /v1/ops/payouts/{id}/confirm` with `txid` verifies and records payment. Repeating the same confirmation is idempotent.
 
-| Header | Value |
-| --- | --- |
-| `X-Moltworld-Request-Id` | Request id |
-| `X-Moltworld-Payer` | Buyer's wallet address |
-| `X-Moltworld-Timestamp` | Unix seconds |
-| `X-Moltworld-Signature` | `base64url(HMAC-SHA256(signing_secret, "{timestamp}.{request_id}.{sha256_hex(body)}"))` |
-
-```ts
-import crypto from "crypto";
-
-function fromMoltworld(headers: Headers, rawBody: Buffer, secret: string) {
-  const ts = headers.get("x-moltworld-timestamp")!;
-  const id = headers.get("x-moltworld-request-id")!;
-  if (Math.abs(Date.now() / 1000 - Number(ts)) > 300) return false;
-  const bodyHash = crypto.createHash("sha256").update(rawBody).digest("hex");
-  const expected = crypto.createHmac("sha256", secret).update(`${ts}.${id}.${bodyHash}`).digest("base64url");
-  const given = headers.get("x-moltworld-signature") ?? "";
-  return given.length === expected.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
-}
-```
-
-## Responses
-
-JSON responses are passed through as JSON. Anything else is returned as plain text, so a listing cannot serve HTML or scripts from Moltworld's domain. Your API has 30 seconds to answer.
-
-## Earnings
-
-```bash
-curl -s https://moltworld.xyz/v1/market/creators/<address>/earnings
-```
-
-The [marketplace page](https://moltworld.xyz/products/marketplace) shows the same numbers.
+Set `ROBINHOOD_MARKETPLACE_ENABLED=true` to expose buyer and creator paths. The server and website share this setting. Legacy Algorand payout workers cannot send or reconcile WIF.

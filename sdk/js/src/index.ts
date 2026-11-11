@@ -74,7 +74,7 @@ export class MoltworldError extends Error {
 export class MoltworldClient {
   readonly baseUrl: string;
   private readonly baseFetch: typeof fetch;
-  private paidFetch: ((input: RequestInfo | URL, init?: RequestInit) => Promise<Response>) | null = null;
+  private health: Promise<any> | null = null;
   private readonly signer?: AvmSigner;
   private readonly evmSigner?: ClientEvmSigner;
   private readonly options: MoltworldClientOptions;
@@ -83,6 +83,9 @@ export class MoltworldClient {
   private payTo: string | null = null;
 
   constructor(options: MoltworldClientOptions) {
+    if (options.budgetUsd !== undefined && (!Number.isFinite(options.budgetUsd) || options.budgetUsd < 0 || !Number.isSafeInteger(Math.floor(options.budgetUsd * 1_000_000)))) {
+      throw new Error("budgetUsd must be a finite, non-negative amount in safe micro-USD units.");
+    }
     this.options = options;
     this.baseUrl = (options.baseUrl ?? "https://motoworld-wif.vercel.app").replace(/\/$/, "");
     // Bound so it can be called as a method; browsers reject fetch with a foreign `this`.
@@ -109,9 +112,9 @@ export class MoltworldClient {
     return res.json();
   }
 
-  private async init() {
-    if (this.paidFetch) return;
-    const health = await this.getJson("/health");
+  private async paymentFetch(reserve: (amount: number) => void, signed: () => void) {
+    this.health ??= this.getJson("/health").catch((error) => { this.health = null; throw error; });
+    const health = await this.health;
     this.payTo = this.options.expectedPayTo ?? health.pay_to;
     if (this.evmSigner) {
       const network = String(health.network_caip2 ?? "");
@@ -164,9 +167,7 @@ export class MoltworldClient {
         if (quotedUsdMicro > maxPerRequestMicro) {
           return { abort: true, reason: `Costs more than your max per request ($${maxPerRequestUsd}).` };
         }
-        if (this.options.budgetUsd !== undefined && this.spentMicro + quotedUsdMicro > this.options.budgetUsd * 1_000_000) {
-          return { abort: true, reason: `Budget of $${this.options.budgetUsd} would be exceeded.` };
-        }
+        reserve(quotedUsdMicro);
         if (extra?.assetTransferMethod === "permit2") {
           await this.options.ensureEvmAllowance?.({
             asset: String(selectedRequirements.asset),
@@ -175,12 +176,8 @@ export class MoltworldClient {
           });
         }
       });
-      client.onAfterPaymentCreation(async ({ selectedRequirements }) => {
-        const extra = selectedRequirements.extra as Record<string, unknown> | undefined;
-        this.spentMicro += Number(extra?.quotedUsdMicro ?? 0);
-      });
-      this.paidFetch = wrapFetchWithPayment(this.baseFetch, client);
-      return;
+      client.onAfterPaymentCreation(async () => { signed(); });
+      return wrapFetchWithPayment(this.baseFetch, client);
     }
     if (!this.signer) throw new Error("An AVM signer is required for Algorand payments.");
     const networks = String(health.network) === "mainnet" ? NETWORKS.mainnet : NETWORKS.testnet;
@@ -200,14 +197,10 @@ export class MoltworldClient {
       if (selectedRequirements.payTo !== this.payTo) {
         return { abort: true, reason: `Refusing to pay ${selectedRequirements.payTo}; expected ${this.payTo}.` };
       }
-      if (this.options.budgetUsd !== undefined && this.spentMicro + amount > this.options.budgetUsd * 1_000_000) {
-        return { abort: true, reason: `Budget of $${this.options.budgetUsd} would be exceeded.` };
-      }
+      reserve(amount);
     });
-    client.onAfterPaymentCreation(async ({ selectedRequirements }) => {
-      this.spentMicro += Number(selectedRequirements.amount);
-    });
-    this.paidFetch = wrapFetchWithPayment(this.baseFetch, client);
+    client.onAfterPaymentCreation(async () => { signed(); });
+    return wrapFetchWithPayment(this.baseFetch, client);
   }
 
   /** Public keys that sign receipts, cached per client. */
@@ -240,13 +233,29 @@ export class MoltworldClient {
   }
 
   async call<T = any>(path: string, body: Record<string, unknown>): Promise<PaidResult<T>> {
-    await this.init();
+    let reserved = 0;
+    let signed = false;
+    const release = () => { this.spentMicro -= reserved; reserved = 0; };
+    const paidFetch = await this.paymentFetch((amount) => {
+      if (reserved) throw new Error("A payment was already reserved for this request.");
+      if (!Number.isSafeInteger(amount) || amount <= 0) throw new Error("Invalid payment budget amount.");
+      if (this.options.budgetUsd !== undefined && this.spentMicro + amount > this.options.budgetUsd * 1_000_000) {
+        throw new Error(`Budget of $${this.options.budgetUsd} would be exceeded.`);
+      }
+      // Reserve before wallet approval yields, so simultaneous calls share the cap.
+      this.spentMicro += amount;
+      reserved = amount;
+    }, () => { signed = true; });
     const requestBytes = JSON.stringify(body);
-    const res = await this.paidFetch!(`${this.baseUrl}${path}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: requestBytes,
-    });
+    let res: Response;
+    try {
+      res = await paidFetch(`${this.baseUrl}${path}`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: requestBytes,
+      });
+    } catch (error) {
+      if (!signed) release();
+      throw error;
+    }
     const bytes = new Uint8Array(await res.arrayBuffer());
     const text = new TextDecoder().decode(bytes);
     let data: any;
@@ -256,6 +265,7 @@ export class MoltworldClient {
       data = text;
     }
     if (!res.ok) {
+      if (res.headers.get("Moltworld-Payment-Status") === "uncharged" || !signed) release();
       throw new MoltworldError(data?.error?.message ?? `HTTP ${res.status}`, res.status, data?.error?.code, data);
     }
     const header = res.headers.get("moltworld-receipt");

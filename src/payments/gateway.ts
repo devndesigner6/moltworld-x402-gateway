@@ -8,6 +8,7 @@ import { actualChatPriceMicro, quoteRequest, referenceRequest } from "../pricing
 import { getWifPriceSnapshot, usdMicroToTokenAtomic, wifBalanceUsdMicro } from "../pricing/wif.js";
 import {
   addCredit,
+  type CompletionCredit,
   completeRequest,
   createRefund,
   createRequest,
@@ -55,6 +56,9 @@ export function gatewayInitError(): string | null {
 }
 
 export function apiError(c: Context, status: number, code: string, message: string, extra?: Record<string, unknown>) {
+  if (["wif_quote_expired", "wif_quote_mismatch", "model_not_found", "model_unavailable", "validation_error", "invalid_json", "facilitator_unavailable", "wif_price_unavailable", "marketplace_disabled", "listing_not_found"].includes(code)) {
+    c.header("Moltworld-Payment-Status", "uncharged");
+  }
   return c.json({ error: { code, message, ...extra } }, status as any);
 }
 
@@ -474,7 +478,7 @@ async function finalize(c: Context, state: PaymentState): Promise<void> {
       rebateMicro,
     });
 
-    await completeRequest(state.requestId, {
+    const completion = {
       upstreamProvider: state.upstream?.provider,
       upstreamModel: state.upstream?.model,
       upstreamCostUsd: state.upstream?.costUsd,
@@ -485,14 +489,11 @@ async function finalize(c: Context, state: PaymentState): Promise<void> {
       responseContentType: res.headers.get("content-type") ?? "application/json",
       responseBody: bytes.length <= MAX_STORED_RESPONSE_BYTES ? bytes : null,
       receipt,
-    });
+    };
+    const credits: CompletionCredit[] = [];
+    const asset = { assetAddress: config.paymentAssetAddress, assetSymbol: config.paymentAssetSymbol, assetDecimals: config.paymentAssetDecimals, network: config.networkCaip2 };
     if (config.paymentChain === "algorand" && rebateMicro > 0) {
-      await addCredit(payer, "rebate", rebateMicro, state.requestId, String(rebateMicro), {
-        assetAddress: config.paymentAssetAddress,
-        assetSymbol: config.paymentAssetSymbol,
-        assetDecimals: config.paymentAssetDecimals,
-        network: config.networkCaip2,
-      });
+      credits.push({ account: payer, kind: "rebate", amountMicro: rebateMicro, amountAtomic: String(rebateMicro), asset });
     }
     // The default marketplace fee remains 15% (configurable via MARKETPLACE_FEE_PERCENT).
     // Robinhood credits are ledger-only; no EVM payout/refund signer is invoked here.
@@ -501,13 +502,10 @@ async function finalize(c: Context, state: PaymentState): Promise<void> {
       const creatorAmountAtomic = config.paymentChain === "robinhood"
         ? creatorShareAtomic(state.amountAtomic, config.marketplaceFeePercent)
         : String(creatorShareMicro);
-      await addCredit(state.listing.creator, "creator", creatorShareMicro, state.requestId, creatorAmountAtomic, {
-        assetAddress: config.paymentAssetAddress,
-        assetSymbol: config.paymentAssetSymbol,
-        assetDecimals: config.paymentAssetDecimals,
-        network: config.networkCaip2,
-      });
+      credits.push({ account: state.listing.creator, kind: "creator", amountMicro: creatorShareMicro, amountAtomic: creatorAmountAtomic, asset });
     }
+    await completeRequest(state.requestId, completion, credits);
+    c.res.headers.set("Moltworld-Payment-Status", "settled");
     c.res.headers.set("Moltworld-Receipt", encodeReceiptHeader(receipt));
     return;
   }
@@ -530,5 +528,6 @@ async function finalize(c: Context, state: PaymentState): Promise<void> {
     await setRequestStatus(state.requestId, "settle_failed", await errorMessageOf(res));
     return;
   }
+  c.res.headers.set("Moltworld-Payment-Status", "uncharged");
   await setRequestStatus(state.requestId, "failed", await errorMessageOf(res));
 }

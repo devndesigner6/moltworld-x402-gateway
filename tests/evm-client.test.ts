@@ -37,6 +37,57 @@ function paymentRequiredHeader() {
 }
 
 describe("Robinhood EVM browser/client spend controls", () => {
+  function budgetClient(reply: () => Response | Promise<Response>, allowance?: () => Promise<void>) {
+    const account = privateKeyToAccount(`0x${"11".repeat(32)}`);
+    return new MoltworldClient({
+      baseUrl: "https://gateway.example",
+      evmSigner: { address: account.address, signTypedData: (data: any) => account.signTypedData(data) },
+      budgetUsd: 0.001,
+      ensureEvmAllowance: allowance,
+      fetch: async (input, init) => {
+        const request = new Request(input, init);
+        if (request.url.endsWith("/health")) return Response.json({ network_caip2: NETWORK, payment_asset: ASSET, pay_to: PAY_TO });
+        if (request.headers.has("payment-signature")) return reply();
+        return new Response("{}", { status: 402, headers: { "Payment-Required": paymentRequiredHeader() } });
+      },
+    });
+  }
+
+  it("releases a budget reservation when the gateway confirms an uncharged failure", async () => {
+    let fails = true;
+    const client = budgetClient(() => fails
+      ? Response.json({ error: { code: "upstream_error", message: "No payment settled" } }, { status: 502, headers: { "Moltworld-Payment-Status": "uncharged" } })
+      : Response.json({ ok: true }));
+    await expect(client.chat("test", { messages: [{ role: "user", content: "first" }] })).rejects.toThrow("No payment settled");
+    expect(client.spentUsd).toBe(0);
+    fails = false;
+    await expect(client.chat("test", { messages: [{ role: "user", content: "retry" }] })).resolves.toBeTruthy();
+    expect(client.spentUsd).toBe(0.001);
+  });
+
+  it("reserves the budget before asynchronous wallet approval so concurrent calls cannot overspend", async () => {
+    let release!: () => void;
+    const approval = new Promise<void>((resolve) => { release = resolve; });
+    let entered!: () => void;
+    const approving = new Promise<void>((resolve) => { entered = resolve; });
+    const client = budgetClient(() => Response.json({ ok: true }), async () => { entered(); await approval; });
+    const first = client.chat("test", { messages: [{ role: "user", content: "first" }] });
+    await approving;
+    const second = client.chat("test", { messages: [{ role: "user", content: "second" }] });
+    // Observe its rejection immediately, before the first approval is released.
+    const rejected = expect(second).rejects.toThrow(/budget/i);
+    release();
+    await first;
+    await rejected;
+    expect(client.spentUsd).toBe(0.001);
+  });
+
+  it("keeps a reservation when a signed request loses its connection and settlement is uncertain", async () => {
+    const client = budgetClient(() => { throw new Error("connection lost"); });
+    await expect(client.chat("test", { messages: [{ role: "user", content: "first" }] })).rejects.toThrow("connection lost");
+    expect(client.spentUsd).toBe(0.001);
+  });
+
   it("allows only the advertised WIF asset and keeps payment creation behind local caps", async () => {
     const account = privateKeyToAccount(`0x${"11".repeat(32)}`);
     const signerCalls: unknown[] = [];

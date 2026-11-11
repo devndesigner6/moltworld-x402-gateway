@@ -165,6 +165,7 @@ const MIGRATIONS: string[] = [
    )`,
   `ALTER TABLE mw_listings ADD COLUMN IF NOT EXISTS listing_nonce TEXT`,
   `CREATE UNIQUE INDEX IF NOT EXISTS mw_listings_creator_nonce_idx ON mw_listings (creator, listing_nonce) WHERE listing_nonce IS NOT NULL`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS mw_wif_payout_transaction_idx ON mw_payouts (network, lower(txid)) WHERE asset_symbol = 'WIF' AND txid IS NOT NULL`,
 ];
 
 async function migrate(db: Queryable): Promise<void> {

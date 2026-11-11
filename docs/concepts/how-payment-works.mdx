@@ -31,7 +31,7 @@ The body you authorize must be the body you send. The signed 402 challenge is au
 
 ## Current support boundaries
 
-The Robinhood paid API is chat-only. Image, voice, video, marketplace payments, and automatic WIF refunds are unavailable. The remote MCP can relay caller-signed chat payments, but it never signs or pays on its own. The site includes an owner-controlled setup wizard for an experimental WIF EIP-1271 session mandate. It is unaudited, and autonomous settlement through the live facilitator has not been proven. Do not treat it as a production feature or fund it with valuable balances.
+Robinhood production is chat-only. Image, voice, video, marketplace payments, automatic WIF refunds, and agent mandates are not enabled. A remote MCP server can relay a caller-signed chat payment but never signs or pays on its own. An EIP-1271 WIF session-mandate prototype is in the repository, but it is undeployed, unaudited, and has no website setup flow; do not fund it with valuable balances.
 
 ## Retries
 
