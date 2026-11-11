@@ -361,7 +361,8 @@ async function recordRequest(state: PaymentState, requirements: { payTo: string;
 }
 
 async function releaseCoordination(state: PaymentState) {
-  if (state.reservedMicro && state.payer) await coordination.unreserve(state.payer, state.reservedMicro);
+  const payer = config.paymentChain === "robinhood" ? state.payer?.toLowerCase() : state.payer;
+  if (state.reservedMicro && payer) await coordination.unreserve(payer, state.reservedMicro);
   if (state.mandateId) await coordination.unreserve(`mandate:${state.mandateId}`, state.amountMicro);
   if ((state as any).lockHeld && state.paymentHash) await coordination.release(`pay:${state.paymentHash}`);
 }
