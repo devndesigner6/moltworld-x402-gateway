@@ -45,12 +45,12 @@ For tokens without a usable Permit2 allowance, clients must arrange a WIF approv
 
 `paidMicro` in SDK results remains the USD quote value for spend-budget accounting; `receipt.amountAtomic` is the exact ERC-20 amount in base units and must not be converted through JavaScript `Number`.
 
-## Experimental WIF agent mandate
+## Live WIF agent mandate
 
-The SDK exports `createWifEvmMandateSigner` and `createWifMandateClientSigner` for the repository's prototype EIP-1271 policy wallet. The session key signs only an exact Permit2 payment whose chain, WIF token, x402 proxy, pay-to, amount and deadline pass local checks; the on-chain contract independently rechecks them. A local Ganache test covers stateful arm/signature/revoke behavior, but it does not test a real Permit2 deployment, facilitator, or Robinhood transaction. This is not a live Moltworld feature: no mandate contract is deployed by the service, no website setup wizard exists, and there is no independent audit. Do not fund it with valuable balances. See [`contracts/README.md`](../../contracts/README.md) and [`docs/agents/mcp.mdx`](../../docs/agents/mcp.mdx) for the current scope.
+The SDK exports `createWifEvmMandateSigner` and `createWifMandateClientSigner` for the EIP-1271 policy wallet. The local session key signs exact Permit2 payments within the chain, asset, proxy, recipient, amount, epoch and expiry constraints. The website owner wizard deploys, funds and arms the contract. A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Legacy Algorand signer
 
-Algorand-specific helpers (`mnemonic`, `privateKeyBase64`, AVM signers, and spending mandates) remain for legacy deployments only. The Robinhood WIF gateway disables mandate endpoints and does not accept AVM payment payloads. No Algorand LogicSig or application ID can be reused on Robinhood Chain.
+Algorand-specific helpers (`mnemonic`, `privateKeyBase64`, AVM signers, and spending mandates) remain for legacy deployments only. The Robinhood WIF gateway disables legacy Algorand mandate POST endpoints and does not accept AVM payment payloads. No Algorand LogicSig or application ID can be reused on Robinhood Chain.
 
-The Python SDK also supports WIF calls using a dedicated local EOA, but that path is local-development-only: its process budgets are not an on-chain mandate. Never give it a user's master wallet key. Python marketplace calls are guarded but the live WIF marketplace remains disabled; the EIP-1271 mandate prototype currently applies only to the JavaScript x402 client/MCP path, and creator payout verification is not implemented.
+Python EOA payment mode remains local-development-only. The owner-funded EIP-1271 mandate uses the TypeScript SDK/local MCP path. The WIF marketplace is enabled for approved APIs, with exact credits and merchant-authorized verified payouts.

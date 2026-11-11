@@ -27,7 +27,7 @@ export function discoveryProfile(cfg: Pick<GatewayConfig, "paymentChain" | "netw
     const market = process.env.ROBINHOOD_MARKETPLACE_ENABLED === "true";
     return {
       title: "Moltworld x402 Gateway | WIF Chat",
-      description: market ? "Moltworld supports chat and reviewed creator APIs paid per call in WIF through x402 on Robinhood Chain using EIP-1193 wallets. Owner-funded agent mandates are experimental; real mandate settlement remains unverified." : "Moltworld supports chat-only requests paid per call in WIF through x402 on Robinhood Chain using EIP-1193 wallets. Agent mandate setup is experimental; marketplace payments are disabled.",
+      description: market ? "Moltworld supports chat and reviewed creator APIs paid per call in WIF through x402 on Robinhood Chain using EIP-1193 wallets. Owner-funded agent mandates support live WIF payments." : "Moltworld supports chat-only requests paid per call in WIF through x402 on Robinhood Chain using EIP-1193 wallets. Owner-funded agent mandates are live; marketplace payments are disabled.",
       tags: ["moltworld", "ai-inference", "chat", "wif", "robinhood-chain", "x402", "exact-evm", "permit2"],
       payment: {
         scheme: "exact",
@@ -38,7 +38,7 @@ export function discoveryProfile(cfg: Pick<GatewayConfig, "paymentChain" | "netw
         tokenStandard: "ERC-20",
         permit2: true,
         supportedModalities: ["chat"],
-        unsupportedFeatures: ["image", "voice", "video", "agent mandates", ...(market ? [] : ["marketplace"]), "automatic refunds"],
+        unsupportedFeatures: ["image", "voice", "video", ...(market ? [] : ["marketplace"]), "automatic refunds"],
       },
     };
   }
@@ -134,7 +134,7 @@ export function handleLlmsTxt(c: Context): Response {
           "Wallets: browser checkout supports an injected EIP-1193 wallet; WalletConnect is available when the deployment configures a Reown project ID. Each chat call requires the user wallet to authorize the exact quote-bound payment.",
           marketplaceEnabled() ? "Supported now: chat and approved marketplace APIs; creator payouts use merchant-wallet transfers with on-chain reconciliation." : "Supported now: chat model requests only. Marketplace is disabled.",
           "Not enabled now: image, voice, video and automatic WIF refunds.",
-          "Experimental: owner-funded EIP-1271 agent mandates. Deploy, fund and arm from /products/mandates; read policy at GET /v1/mandates/{contract-address}. Real mandate settlement remains unverified. Local budgets and remote MCP discovery are not an on-chain mandate.",
+          "Live: owner-funded EIP-1271 agent mandates. Deploy, fund and arm from /products/mandates; read policy at GET /v1/mandates/{contract-address}. Mainnet settlement proof: https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3. Local budgets and remote MCP discovery are not an on-chain mandate.",
         ]
       : [
           `Facilitator: ${config.facilitatorUrl} (legacy Algorand deployment).`,
@@ -150,7 +150,7 @@ export function handleLlmsTxt(c: Context): Response {
     ...(robinhood
       ? [
           "- Use an x402 EVM client implementing ExactEvmScheme and Permit2, or the browser's injected EIP-1193 wallet flow, to authorize the challenge and retry with Payment-Signature.",
-          "- The user wallet signs each call. No live agent mandate allows unattended spending on Robinhood Chain.",
+          "- Direct calls use the user wallet. A local MCP session key can authorize tasks within an owner-funded mandate.",
           "- A successful chat response carries a Moltworld-Receipt header binding the request and response hashes to the settled WIF amount and Robinhood transaction.",
           "- Chat is configured to settle after the answer; unused max_tokens are not an automatic WIF rebate.",
         ]
@@ -173,7 +173,7 @@ export function handleLlmsTxt(c: Context): Response {
     `- [Quote](${origin}/v1/quote): POST { model, ...body } for the exact price.`,
     `- [Receipt keys](${origin}/.well-known/moltworld-receipts.json): Ed25519 keys that sign Moltworld receipts.`,
     `- [Public stats](${origin}/v1/stats): Ledger metrics with on-chain transaction ids.`,
-    ...(robinhood ? marketplaceEnabled() ? [`- [Marketplace](${origin}/v1/market): Approved creator APIs with quote-bound WIF payments.`, `- [Owner mandate setup](${origin}/products/mandates): Experimental local-agent setup.`] : [] : [`- [Legacy marketplace](${origin}/v1/market): Creator APIs on the legacy Algorand rail.`]),
+    ...(robinhood ? marketplaceEnabled() ? [`- [Marketplace](${origin}/v1/market): Approved creator APIs with quote-bound WIF payments.`, `- [Owner mandate setup](${origin}/products/mandates): Live local-agent setup.`] : [] : [`- [Legacy marketplace](${origin}/v1/market): Creator APIs on the legacy Algorand rail.`]),
     "",
     "## Paid model endpoints",
     "",

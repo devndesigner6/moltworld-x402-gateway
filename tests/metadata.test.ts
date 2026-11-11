@@ -26,7 +26,8 @@ describe("Robinhood machine-readable discovery", () => {
       permit2: true,
       supportedModalities: ["chat"],
     });
-    expect(profile.payment.unsupportedFeatures).toEqual(expect.arrayContaining(["agent mandates", "marketplace", "automatic refunds"]));
+    expect(profile.payment.unsupportedFeatures).toEqual(expect.arrayContaining(["marketplace", "automatic refunds"]));
+    expect(profile.payment.unsupportedFeatures).not.toContain("agent mandates");
   });
 
   it("keeps the legacy Algorand profile distinguishable", () => {
@@ -49,7 +50,7 @@ describe("Robinhood machine-readable discovery", () => {
     try {
       const profile = discoveryProfile({ paymentChain: "robinhood", networkCaip2: "eip155:4663", paymentAssetAddress: "0x5173b8eA6923c2d40267890D45C46a3480954773", paymentAssetSymbol: "WIF", paymentAssetDecimals: 18 });
       expect(profile.description).toContain("reviewed creator APIs");
-      expect(profile.description).toContain("experimental");
+      expect(profile.description).toContain("live WIF payments");
       expect(profile.payment.unsupportedFeatures).not.toContain("marketplace");
     } finally {
       if (previous === undefined) delete process.env.ROBINHOOD_MARKETPLACE_ENABLED;

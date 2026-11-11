@@ -3,11 +3,11 @@ title: "WIF Quickstart"
 description: "Make a chat request with a user-authorized WIF payment on Robinhood Chain."
 ---
 
-> **Current Robinhood rail:** chat-only x402 payments on Robinhood Chain mainnet (`eip155:4663`). WIF is the ERC-20 payment token with 18 decimals. Image, voice, video, marketplace, and automatic refunds are not enabled. An experimental owner-driven WIF mandate setup page exists, but live facilitator settlement from an EIP-1271 mandate has not been proven; do not treat it as production-autonomous.
+> **Current Robinhood rail:** WIF payments, owner-funded agent mandates and enabled marketplace APIs are available on Robinhood Chain. Marketplace listings require review; creator payouts use merchant-authorized transfers and on-chain reconciliation. Media and automatic WIF refunds remain unavailable. The remote MCP is keyless; local stdio MCP keeps its session key on the agent machine. A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## For users: connect a wallet
 
-You need a supported EVM wallet, WIF for the quoted payment, and a small amount of native ETH for gas if your first use requires a Permit2 approval. Connect through an injected wallet provider or WalletConnect; WalletConnect on a mobile browser requires the deployment's public Reown project ID to be configured. Direct chat calls are user-authorized in the wallet. The separate mandate setup page is experimental and must not be relied on for unattended production payments until its real settlement path is verified.
+Direct wallet calls require WIF for payment and native ETH for a first-use Permit2 approval. WalletConnect requires a configured Reown project ID. For agent payments, use the owner-funded mandate and local stdio MCP described below. The owner key stays in the wallet.
 
 <Steps>
   <Step title="Connect and switch networks">
@@ -61,9 +61,9 @@ const res = await x402Client.fetch(
 
 The WIF contract and all payment details come from the 402 challenge and [`GET /health`](https://moltworldd.vercel.app/health); do not hard-code a recipient or amount. Keep the request body byte-for-byte identical between the unpaid 402 request and the paid retry.
 
-## Agent mandates: experimental setup, settlement unverified
+## Agent mandates: live settlement
 
-An owner-driven wallet wizard is available at [WIF mandates](https://moltworldd.vercel.app/products/mandates). It can deploy the pinned contract, transfer WIF into its vault, arm a finite allowance, inspect state, revoke, and withdraw. The contract has no independent security audit; local Ganache tests do not validate Permit2/facilitator interoperability or a real mandate settlement. Start only with a small test amount and review every wallet transaction. The remote MCP remains keyless and cannot autonomously pay. Local autonomous payment requires a compatible stdio-MCP host and a separate session key; do not give agents the owner's wallet key. Marketplace listings/payouts, media endpoints, and automatic WIF refunds remain unavailable on Robinhood.
+The [owner wizard](https://moltworldd.vercel.app/products/mandates) deploys, funds, arms, reads, revokes and withdraws from a pinned contract. Autonomous payment uses local stdio MCP and a separate session key within the owner-set limits. The remote MCP remains keyless. A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Next
 
@@ -74,10 +74,10 @@ An owner-driven wallet wizard is available at [WIF mandates](https://moltworldd.
   <Card title="Read machine-readable discovery" icon="code" href="https://moltworldd.vercel.app/llms.txt">
     See the current network, token, supported surface, and unsupported features.
   </Card>
-  <Card title="Experimental WIF mandate setup" icon="shield-check" href="https://moltworldd.vercel.app/products/mandates">
-    Owner-controlled contract flow; unaudited, and live autonomous settlement is unverified.
+  <Card title="Live WIF mandate setup" icon="shield-check" href="https://moltworldd.vercel.app/products/mandates">
+    Owner-controlled mandates with verified mainnet settlement. Independent audit remains outstanding.
   </Card>
   <Card title="WIF marketplace status" icon="store" href="https://moltworldd.vercel.app/products/marketplace">
-    Creator calls and payouts are disabled until payout controls and reconciliation are complete.
+    Approved creator APIs support WIF checkout. Creator payouts require merchant-authorized transfers and on-chain verification.
   </Card>
 </CardGroup>

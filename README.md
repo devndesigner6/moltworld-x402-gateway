@@ -2,7 +2,7 @@
 
 Moltworld is an x402 pay-per-request gateway for AI services. The current WIF payment rail uses **WIF (World Is Flat)** on **Robinhood Chain**; the network reference is technical and does not imply affiliation or endorsement.
 
-> **Current status:** WIF chat uses live Robinhood Chain x402 payments and signed receipts. Setting `ROBINHOOD_MARKETPLACE_ENABLED=true` enables wallet-signed creator listings, reviewed API checkout, exact creator credits, and verified wallet-authorized payout reconciliation. The owner setup wizard deploys, funds, arms, revokes and withdraws from the experimental EIP-1271 mandate. Its session key stays on the local agent's machine. Mainnet deployment and paid mandate verification require the owner's wallet and gas; the code does not invent transaction evidence. The contract has no independent audit. External mobile-wallet connectivity requires a Reown project ID. Image, voice, video and automatic WIF refunds remain unavailable.
+> **Current status:** WIF payments, owner-funded agent mandates and enabled marketplace APIs are available on Robinhood Chain. Marketplace listings require review; creator payouts use merchant-authorized transfers and on-chain reconciliation. Media and automatic WIF refunds remain unavailable. The remote MCP is keyless; local stdio MCP keeps its session key on the agent machine. A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Payment addresses
 
@@ -51,7 +51,7 @@ See [`.env.example`](.env.example) for the service settings. Production requires
 ## Scope not yet migrated
 
 - WIF settlement/refunds for image, voice, and video calls.
-- Independent security review and a user-authorized mainnet payment for the EIP-1271 mandate. The owner setup/revoke wizard, pinned on-chain lookup and local session signer are implemented.
+- Independent security review remains outstanding. A real owner-funded mandate payment and its receipt have been verified on mainnet.
 - Additional repeat-use evidence across users or agents is still needed to establish a measured hackathon flywheel; the first user-authorized WIF payment and response have been verified.
 
 Legacy-only payment actions stay isolated from WIF. Mandate deployment happens in the owner's wallet. Run `pnpm exec tsx scripts/checkWifMandate.ts` with the local MCP configuration to read its live policy, then add `--pay` to make one real GPT request and verify its receipt. A funded, armed mandate is required. Local EOA budgets do not enforce the contract's policy.

@@ -1,16 +1,16 @@
 ---
 title: "Spending mandates"
-description: "Experimental Robinhood WIF session mandates with an owner-controlled policy wallet; historical Algorand mandate instructions are retained below."
-sidebarTitle: "WIF mandate beta"
+description: "Live owner-controlled WIF session mandates on Robinhood Chain with verified mainnet settlement."
+sidebarTitle: "WIF mandates"
 ---
 
-> **WIF experimental beta:** The website now has an owner-controlled setup page for a real Robinhood Chain mandate contract. The contract and flow are unaudited, and a real EIP-1271 mandate settlement through the live facilitator has not yet been proven. Use only a small test balance and inspect every wallet prompt.
+> **Live mainnet mandates:** A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Robinhood Chain WIF setup
 
 Open the [WIF mandate setup page](https://moltworldd.vercel.app/products/mandates). It connects an injected owner wallet, checks the live gateway health fields, and verifies the pinned runtime bytecode before interacting with a contract. The owner explicitly confirms each separate deployment, WIF transfer, arm, revoke, or withdrawal in their wallet; the site never asks for a seed phrase or private key.
 
-The deployed contract is a narrow policy wallet: it fixes the owner, WIF token, Permit2, x402 exact proxy, and gateway pay-to. When armed, it restricts the delegated session key to a finite total Permit2 allowance, a per-call WIF maximum, and an expiry of at most seven days in the beta wizard. Revocation invalidates old session signatures and clears the Permit2 allowance. The WIF is transferred into the contract vault; the owner can withdraw only after the mandate is inactive.
+The deployed contract is a narrow policy wallet: it fixes the owner, WIF token, Permit2, x402 exact proxy, and gateway pay-to. When armed, it restricts the delegated session key to a finite total Permit2 allowance, a per-call WIF maximum, and an expiry of at most seven days in the wizard. Revocation invalidates old session signatures and clears the Permit2 allowance. The WIF is transferred into the contract vault; the owner can withdraw only after the mandate is inactive.
 
 Create the agent session key on the same machine as the local stdio MCP:
 
@@ -24,7 +24,7 @@ node sdk/js/dist/mcp.js wif-session-keygen
 
 This prints the public address and stores the private session key locally at `~/.moltworld/wif-agent.key` with mode `0600`. Enter only the public address in the wizard. Do not give an agent the owner's wallet key. The local MCP requires the mandate address, owner address, and expected gateway `pay_to` to match; the hosted remote MCP remains keyless and caller-signed.
 
-**Important limitation:** deployment, local unit tests, and contract simulations are not evidence that Primer accepts this EIP-1271 Permit2 wrapper on Robinhood Chain. Do not treat the mandate as live-autonomous until a user-authorized small WIF payment succeeds end-to-end and produces a verified response and receipt. Independent contract review is still required.
+**Security scope:** Mainnet settlement has been verified. This does not replace an independent contract audit or prove every failure mode. Keep allowances finite, inspect limits and retain owner control of revocation.
 
 ## Verify the actual contract and payment
 

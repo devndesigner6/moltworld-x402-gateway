@@ -136,7 +136,7 @@ function snippets(model = "gpt-4o") {
 
 // Remote MCP lists models, quotes requests, and relays caller-signed chat.
 // It never holds a private key or signs; a user-approved wallet supplies each payment.
-// Agent mandates are not live. Marketplace tools remain unavailable until enabled.
+// Agent mandates use a local session key. Marketplace calls require approved listings.
 // This is configuration example text; it does not claim a completed call.
 ` : `{
   "mcpServers": {
@@ -238,8 +238,8 @@ function termDemo(models: CatalogEntry[]): string {
 }
 
 function meterDemo(): string {
-  if (config.paymentChain === "robinhood") return `<div class="meter" data-reveal aria-label="Experimental WIF mandate preview; no active mandate is connected">
-      <div class="meter-top"><span>Experimental setup &middot; not active</span><b>&mdash;</b></div>
+  if (config.paymentChain === "robinhood") return `<div class="meter" data-reveal aria-label="WIF mandate policy preview; connect a wallet to inspect your mandate">
+      <div class="meter-top"><span>Live mandates &middot; wallet not connected</span><b>&mdash;</b></div>
       <div class="meter-bar">${"<i></i>".repeat(20)}</div>
       <div class="limits"><span class="limit">per call <b>owner-set</b></span><span class="limit">total cap <b>finite</b></span><span class="limit">expiry <b>owner-set</b></span></div>
       <div class="meter-actions"><button class="switch" type="button" role="switch" aria-checked="false" aria-label="No active mandate" disabled></button><span>not active</span></div>
@@ -387,7 +387,7 @@ function home(c: Context) {
         ${stepsList(["Send a chat request and receive its exact quote.", "Authorize the quoted WIF payment on Robinhood Chain; first use can require Permit2 approval and native ETH for gas.", "The answer is generated first. WIF settlement completes before the response is returned.", "Keep or verify the signed receipt."])}`)}
       ${sec(`${secHead("Every chat model. <em>Priced per call.</em>", arrowLink("/models", "Chat models"))}${wifModalityRow(chatModels)}`)}
       <div class="rails-band">${modelRails(chatModels)}</div>
-      ${sec(`<div class="agent-grid"><div><h2 data-split>Built for software <em>that spends money.</em></h2><ul class="feature-list" data-reveal><li>${icon("plug", 20)}<b>Remote and local MCP servers</b></li><li>${icon("mandate", 20)}<b>Experimental WIF mandates; real facilitator settlement is unverified</b></li><li>${icon("globe", 20)}<b>A2A agent card and llms.txt</b></li></ul><div class="cta-row" data-reveal>${btn("/solutions/agents", "Connect your agent")}${btn(`${docs()}/agents/mcp`, "MCP docs", "ghost")}</div></div>${chatDemo(chatModels)}</div>`)}
+      ${sec(`<div class="agent-grid"><div><h2 data-split>Built for software <em>that spends money.</em></h2><ul class="feature-list" data-reveal><li>${icon("plug", 20)}<b>Remote and local MCP servers</b></li><li>${icon("mandate", 20)}<b>Live WIF mandates with verified mainnet settlement</b></li><li>${icon("globe", 20)}<b>A2A agent card and llms.txt</b></li></ul><div class="cta-row" data-reveal>${btn("/solutions/agents", "Connect your agent")}${btn(`${docs()}/agents/mcp`, "MCP docs", "ghost")}</div></div>${chatDemo(chatModels)}</div>`)}
       ${sec(`<div class="dev-grid"><div><h2 data-split>One config for agents. <em>A few lines for apps.</em></h2><div class="sdk-list" data-reveal><a class="sdk" href="${docs()}/agents/mcp">${icon("plug", 20)}<b>MCP server</b>${icon("arrow", 16)}</a><a class="sdk" href="${docs()}/sdks/typescript">${icon("package", 20)}<b>TypeScript SDK</b>${icon("arrow", 16)}</a><a class="sdk" href="${docs()}/sdks/python">${icon("package", 20)}<b>Python SDK</b>${icon("arrow", 16)}</a><a class="sdk" href="${docs()}/api-reference/introduction">${icon("braces", 20)}<b>HTTP API / curl</b>${icon("arrow", 16)}</a></div></div><div data-reveal style="--d:2">${codeTabs("hero", [["mcp", "MCP", s.mcp, "json"], ["ts", "TypeScript", s.ts], ["py", "Python", s.py], ["curl", "curl", s.curl, "sh"]])}</div></div>`)}
       ${sec(`${secHead("A wallet <em>instead of an account.</em>")}<div class="compare" data-reveal role="table" aria-label="Moltworld on Robinhood Chain compared with API keys and plans"><div class="compare-row head" role="row"><div role="columnheader"></div><div class="us" role="columnheader">Moltworld on Robinhood</div><div role="columnheader">API keys and plans</div></div>${[["Sign-up", "No account; connect an EVM wallet", "An account per provider"], ["Your money", "In your wallet until a WIF request settles", "Prepaid to the provider, or billed later"], ["Per-call spend", "Exact quote and WIF amount", "Provider-side limits"], ["A leaked credential", "A payment still needs wallet authorization", "May spend up to the key's limit"], ["Failed chat request", "Payment is not settled before a response", "Depends on the provider"], ["Proof of each call", "Signed receipt and on-chain settlement", "Usage logs"], ["Mandates and marketplace", "Not enabled on this payment rail", "Build billing yourself"]].map(([k, us, them]) => `<div class="compare-row" role="row"><div role="rowheader">${k}</div><div class="us" role="cell">${icon("check", 16)}${us}</div><div role="cell">${them}</div></div>`).join("")}</div>`)}
       ${sec(`${secHead("Every payment <em>has on-chain proof.</em>", arrowLink("/stats", "Live network"))}${statsWidget()}<p class="note" data-reveal>Stats are loaded from the gateway ledger. USD figures are quote-time estimates, not mark-to-market WIF totals.</p>`)}
@@ -542,7 +542,7 @@ function robinhoodFaq(): string {
   const qa: Array<[string, string]> = [
     ["What is live on Robinhood production?", "Real chat calls paid in WIF on Robinhood Chain, with an exact quote, x402 authorization, and a signed receipt when the call completes."],
     ["Which clients can connect?", "An EVM wallet in the Playground, the TypeScript or Python SDK, remote MCP for discovery, or a local MCP server configured with its own EVM key file. curl can request a free quote or unpaid 402 terms; it does not sign a payment."],
-    ["Are media, mandates, or marketplace calls available?", marketplaceEnabled() ? "WIF marketplace calls and verified creator payout reconciliation are enabled. Owner-funded agent mandates are an experimental beta. Image, voice, video and automatic refunds remain unavailable." : "Robinhood production supports chat calls. Owner-funded mandates are experimental. Marketplace checkout, media and automatic refunds remain disabled."],
+    ["Are media, mandates, or marketplace calls available?", marketplaceEnabled() ? "WIF marketplace calls and verified creator payout reconciliation are enabled. Owner-funded agent mandates support live WIF payments. Image, voice, video and automatic refunds remain unavailable." : "Robinhood production supports chat calls. Owner-funded mandates are live. Marketplace checkout, media and automatic refunds remain disabled."],
     ["Where do WIF amounts come from?", "The gateway returns a quote-bound WIF amount in the 402 payment requirements using the live price snapshot. The displayed USD value is a quote, not a mark-to-market balance."],
     ["Can I see example receipts or hashes?", "No fabricated transaction values or hashes are displayed. Verify a receipt from a completed real request in the Playground."],
   ];
@@ -586,7 +586,7 @@ function products(c: Context) {
     const visual: Record<string, string> = { "/products/gateway": termDemo(models), "/products/mandates": meterDemo(), "/products/marketplace": splitDemo() };
     const claim: Record<string, string> = {
       "/products/gateway": "Chat gateway, <em>paid per call in WIF.</em>",
-      "/products/mandates": "Experimental mandate setup, <em>owner-controlled.</em>",
+      "/products/mandates": "Live agent mandates, <em>owner-controlled.</em>",
       "/products/marketplace": marketplaceEnabled() ? "Sell your API <em>per WIF-paid call.</em>" : "Marketplace <em>disabled on this rail.</em>",
     };
     const [receiptsLink] = builtIn();
@@ -607,12 +607,12 @@ function products(c: Context) {
             ["receipt", `A <a href="${receiptsLink.href}">signed receipt</a> can tie a completed WIF chat response to its exact request.`],
             ["wallet", "The caller authorizes the exact quote-bound WIF amount in the wallet."],
             ["shield", "The gateway fails closed when the WIF quote or wallet payment cannot be verified."],
-            ["tag", marketplaceEnabled() ? "Marketplace checkout and verified creator payout reconciliation are enabled. Mandates remain experimental; media and automatic refunds are unavailable." : "Image, voice, video, mandates settlement, marketplace listings, and automatic refunds are not live here."],
+            ["tag", marketplaceEnabled() ? "Marketplace checkout and verified creator payout reconciliation are enabled. Mandates support live payments; media and automatic refunds are unavailable." : "Agent mandates support live payments. Image, voice, video, marketplace listings and automatic refunds are unavailable here."],
           ])}
         </div>
       `)}
       ${ctaFinal("Try the WIF <em>chat playground.</em>", `${btn("/playground", "Open Playground")}${btn("/stats", "Gateway ledger", "ghost")}`)}`;
-    return renderPage(c, { path: "/products", title: "Products", description: "Moltworld's original product surfaces, with Robinhood Chain WIF checkout currently limited to chat and other surfaces clearly marked unavailable or experimental.", body });
+    return renderPage(c, { path: "/products", title: "Products", description: "Moltworld WIF payments, owner-controlled agent mandates, marketplace APIs and verifiable receipts on Robinhood Chain.", body });
   }
   const visual: Record<string, string> = { "/products/gateway": termDemo(models), "/products/mandates": meterDemo(), "/products/marketplace": splitDemo() };
   const claim: Record<string, string> = {
@@ -752,18 +752,18 @@ function mandates(c: Context) {
     const body = `
       ${pageHero({ crumbs: [["Product", "/products"]], title: "Give an agent a budget, <em>not your keys.</em>", ctas: `${btn("/playground", "Test direct WIF checkout")}${btn("/quickstart", "WIF quickstart", "ghost")}`, visual: meterDemo() })}
       ${sec(`
-        ${secHead("Experimental enforcement <em>to inspect before funding.</em>")}
+        ${secHead("Owner-controlled budgets <em>with live settlement.</em>")}
         <div class="split-table">
           <div class="enforce" data-reveal><h3>${icon("shield", 20)} Owner wallet</h3><ul><li>Deploys and owns the policy contract</li><li>Transfers WIF into the contract</li><li>Arms a finite Permit2 allowance</li><li>Can revoke and withdraw</li></ul></div>
-          <div class="enforce" data-reveal style="--d:1"><h3>${icon("gateway", 20)} Experimental policy</h3><ul><li>Per-call WIF cap and finite total allowance</li><li>Agent session key is separate from the owner</li><li>Expiry and epoch checks are enforced by the contract</li><li>Real facilitator settlement is not independently verified</li></ul></div>
+          <div class="enforce" data-reveal style="--d:1"><h3>${icon("gateway", 20)} On-chain policy</h3><ul><li>Per-call WIF cap and finite total allowance</li><li>Agent session key is separate from the owner</li><li>Expiry and epoch checks are enforced by the contract</li><li>Mainnet settlement verified with a signed receipt</li></ul></div>
         </div>
-        <div class="grid-2" style="margin-top:24px"><div class="card" data-reveal><h3>Configuration code</h3><p class="mono">wif-session-keygen &middot; share only the printed agent address</p></div><div class="card" data-reveal style="--d:1"><h3>Mandate lookup</h3><p class="note">A live WIF lookup endpoint is not claimed here. Use the connected owner wallet and the on-chain verification shown by the wizard.</p></div></div>
+        <div class="grid-2" style="margin-top:24px"><div class="card" data-reveal><h3>Configuration code</h3><p class="mono">wif-session-keygen &middot; share only the printed agent address</p></div><div class="card" data-reveal style="--d:1"><h3>Mandate lookup</h3><p class="note">Read live policy and balance at <code>GET /v1/mandates/{contract-address}</code>. The wizard verifies the pinned contract and current gateway recipient.</p></div></div>
       `)}
       ${sec(`
         <div data-wif-mandate-root class="mandate-setup">
         <div class="mandate-warning" role="note">
-          <strong>Experimental mainnet beta — read before using.</strong>
-          <p>This is real Robinhood Chain contract setup, not a simulation. The contract has not had an independent security audit, and Moltworld's custom EIP-1271 mandate has not yet completed a real paid settlement through the live facilitator. Start only with an amount you can afford to lose. The setup page will not ask for a seed phrase, wallet private key, or agent private key.</p>
+          <strong>Live on Robinhood Chain</strong>
+          <p>A local MCP agent completed a real WIF payment through this EIP-1271 mandate on mainnet. View the <a href="https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3" target="_blank" rel="noopener noreferrer">settlement transaction</a> and <a href="https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS" target="_blank" rel="noopener noreferrer">signed receipt</a>. The contract has not had an independent security audit. Use a limited balance and review every wallet prompt. Keep owner and session private keys off this page.</p>
         </div>
         <div class="grid-2 mandate-top-grid">
           <div class="card">
@@ -816,14 +816,14 @@ node sdk/js/dist/mcp.js wif-session-keygen</code></pre>
           </div>
         </div>
         <div class="card mandate-card">
-          <label class="mandate-ack"><input data-field="risk-ack" type="checkbox"> I understand this is unaudited experimental contract code and the WIF mandate's real facilitator settlement has not yet been proven. I will start with a small test balance and review every wallet prompt.</label>
+          <label class="mandate-ack"><input data-field="risk-ack" type="checkbox"> I understand this contract has not had an independent security audit. I will use a limited balance, review the spending limits and inspect every wallet prompt.</label>
           <div class="mandate-actions"><button class="btn btn-ghost" type="button" data-action="copy-config">Copy local MCP settings</button></div>
           <p class="mandate-status" data-mandate-status role="status" aria-live="polite">Ready. Connect the owner wallet to verify the live WIF settings.</p>
         </div>
         </div>
       `)}
       ${ctaFinal("An agent key. <em>A bounded WIF budget.</em>", `${btn("/playground", "Try direct checkout")}${btn("/quickstart", "Read MCP setup", "ghost")}`)}`;
-    return renderPage(c, { path: "/products/mandates", title: "WIF Agent Mandates", description: "Experimental owner-controlled WIF session mandates on Robinhood Chain with a finite Permit2 allowance, per-call cap, expiry, and revocation.", body });
+    return renderPage(c, { path: "/products/mandates", title: "WIF Agent Mandates", description: "Live owner-controlled WIF session mandates on Robinhood Chain with a finite Permit2 allowance, per-call cap, expiry, and revocation.", body });
   }
   const origin = config.publicDomain;
   const body = `
@@ -1021,7 +1021,7 @@ function pricing(c: Context) {
       ${sec(`<div class="formula" data-reveal role="img" aria-label="USD quote equals upstream cost times ${(1 + config.priceMargin).toFixed(2)}, with a minimum of $${config.priceMinFloor} per chat call"><span class="term-box">Upstream cost</span><span class="op">&times;</span><span class="term-box">${(1 + config.priceMargin).toFixed(2)}</span><span class="op">min</span><span class="term-box">$${config.priceMinFloor}</span></div>`, { line: false })}
       ${sec(`${secHead("Never billed.")}<div class="free-list">${["Accounts and plans", "Quotes and 402 challenges", "Unsupported media requests", "Unrequested marketplace actions"].map((t, i) => `<div class="free" data-reveal style="--d:${i}"><b>$0</b><span>${t}</span></div>`).join("")}</div>`)}
       ${sec(`${secHead("What a chat call <em>costs today.</em>", arrowLink("/models", "Chat models"))}<p class="note">Prices shown are USD starting estimates. Your WIF amount depends on the live quote-time price and exact request.</p><div class="table-wrap" data-reveal><table class="stack"><thead><tr><th>Model</th><th>Type</th><th>Request</th><th>Price</th><th><span class="sr-only">Action</span></th></tr></thead><tbody>${examples.map((m) => `<tr><td data-label="Model">${esc(m.name)}</td><td data-label="Type">Chat</td><td data-label="Request">Short prompt, 256 max_tokens</td><td data-label="Price"><strong>${esc(m.from)}</strong></td><td data-label=""><a class="link-arrow" href="/playground?model=${encodeURIComponent(m.slug)}">Price yours ${icon("arrow", 14)}</a></td></tr>`).join("")}</tbody></table></div>`)}
-      ${sec(`${secHead("Selling <em>is disabled on WIF.</em>")}<div class="grid-2"><div data-reveal>${splitDemo()}</div>${facts([["tag", "Marketplace listings are not enabled on Robinhood Chain."], ["wallet", "No creator payout, refund, buyback, or flywheel mechanism is live."], ["shield", "The illustrative split is not a payment or earnings record."]])}</div>`)}
+      ${sec(`${secHead(marketplaceEnabled() ? "Sell APIs <em>per WIF-paid call.</em>" : "Selling <em>is disabled on WIF.</em>")}<div class="grid-2"><div data-reveal>${splitDemo()}</div>${facts([["tag", marketplaceEnabled() ? "Creator listings require a wallet signature and operator approval." : "Marketplace listings are not enabled on Robinhood Chain."], ["wallet", marketplaceEnabled() ? "Creator payouts use merchant-authorized WIF transfers and on-chain reconciliation. Automatic refunds and buybacks are unavailable." : "No creator payout, refund, buyback, or flywheel mechanism is live."], ["shield", "The illustrative split is not a payment or earnings record."]])}</div>`)}
       ${ctaFinal("See the quote <em>before you authorize.</em>", btn("/playground", "Open Playground"))}`;
     return renderPage(c, { path: "/pricing", title: "Pricing", description: "USD-based chat request quotes converted to WIF on Robinhood Chain at the time of x402 authorization.", body });
   }
@@ -1078,7 +1078,7 @@ function developers(c: Context) {
     const s = snippets();
     const body = `
       ${pageHero({ title: "Build on the <em>WIF x402 rail.</em>", ctas: `${btn("/quickstart", "WIF Quickstart")}${btn("/v1/models", "Model catalog", "ghost")}`, visual: codeTabs("dev", [["mcp", "MCP", s.mcp, "json"], ["ts", "TypeScript", s.ts], ["py", "Python", s.py], ["curl", "curl", s.curl]]) })}
-      ${sec(`${secHead("First call <em>in minutes.</em>")}${stepsList(["Connect an EVM wallet on Robinhood Chain.", "Hold WIF and native ETH for any first-use Permit2 approval.", "Request a free quote and inspect the 402 challenge.", marketplaceEnabled() ? "Call an enabled chat model or approved marketplace API. Owner-funded agent mandates remain experimental." : "Call an enabled chat model; media, marketplace, and autonomous mandate settlement are not live on this rail."])}`)}
+      ${sec(`${secHead("First call <em>in minutes.</em>")}${stepsList(["Connect an EVM wallet on Robinhood Chain.", "Hold WIF and native ETH for any first-use Permit2 approval.", "Request a free quote and inspect the 402 challenge.", marketplaceEnabled() ? "Call an enabled chat model or approved marketplace API. Owner-funded agent mandates support live WIF payments." : "Call an enabled chat model directly or through a funded mandate. Media and marketplace calls are unavailable here."])}`)}
       ${sec(`${secHead("Tools.")}${linkCards([{ title: "TypeScript SDK", href: `${docs()}/sdks/typescript`, icon: "package" }, { title: "Python SDK", href: `${docs()}/sdks/python`, icon: "package" }, { title: "Remote MCP", href: `${docs()}/agents/mcp`, icon: "plug" }, { title: "Chat API reference", href: `${docs()}/api-reference/introduction`, icon: "braces" }, { title: "Playground", href: "/playground", icon: "play" }, { title: "Gateway ledger", href: "/stats", icon: "pulse" }])}`)}
       ${sec(`${secHead("Machine-readable <em>by default.</em>")}<div class="table-wrap" data-reveal><table class="stack"><thead><tr><th>Endpoint</th><th>Contents</th></tr></thead><tbody>${[["/llms.txt", "The service, written for language models"], ["/v1/models", "Chat catalog with upstream ids and starting estimates"], ["/.well-known/x402", "x402 resource descriptor"], ["/.well-known/moltworld-receipts.json", "Receipt signing keys"], ["/mcp", "Remote MCP for discovery and caller-signed relay"], ["/health", "Readiness and network"]].map(([p, d]) => `<tr><td data-label="Endpoint"><a href="${p}"><code>${config.publicDomain}${p}</code></a></td><td data-label="Contents">${d}</td></tr>`).join("")}</tbody></table></div>`)}
       ${ctaFinal("Inspect and authorize <em>every payment.</em>", btn("/playground", "Open Playground"))}`;
@@ -1180,12 +1180,12 @@ await fetch("/v1/quote", {
         ["bolt", "Live paid surface: POST /v1/models/{model}/chat/completions."],
         ["receipt", "Successful responses include Moltworld-Request-Id and a signed Moltworld-Receipt."],
         ["check", "Use /v1/models and /v1/quote for discovery and preflight; neither takes payment."],
-        ["tag", marketplaceEnabled() ? "Approved marketplace APIs support WIF checkout. Agent mandates are experimental; media and automatic refunds are unavailable." : "Image, voice, video, marketplace, automatic refunds, and agent mandates are not live on this rail."],
+        ["tag", marketplaceEnabled() ? "Approved marketplace APIs support WIF checkout. Agent mandates support live payments; media and automatic refunds are unavailable." : "Agent mandates support live payments. Image, voice, video, marketplace calls and automatic refunds are unavailable here."],
       ])}
     `, { id: "developer" })}
     ${sec(`
-      ${secHead("Per-call signing <em>is live. Agent mandate code is experimental.</em>")}
-      <p class="note" data-reveal>An EIP-1271 WIF session-mandate prototype and an owner-controlled website setup wizard are available for experimental, unaudited configuration. The wizard does not prove a real paid settlement through the live facilitator, and the local tests do not cover the real Permit2 deployment, facilitator, or Robinhood network. Do not fund it with valuable balances. The remote MCP stays keyless and only relays caller-signed requests; autonomous payment needs a compatible local stdio-MCP client and a separately armed session wallet. Algorand LogicSig mandates do not transfer to Robinhood Chain.</p>
+      ${secHead("Per-call signing and <em>agent mandates are live.</em>")}
+      <p class="note" data-reveal>An owner-funded EIP-1271 mandate has completed a real WIF-paid task through the local MCP and live facilitator. Inspect the <a href="https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3">transaction</a> and <a href="https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS">receipt</a>. The remote MCP stays keyless; local stdio MCP uses a separate session key within the owner's contract limits. The contract has not had an independent security audit. Algorand LogicSig mandates are a separate legacy implementation.</p>
     `)}
     ${ctaFinal("Review every quote. <em>Authorize only what you intend.</em>", `${btn("/playground", "Try a chat call")}${btn("/llms.txt", "Machine-readable guide", "ghost")}`)}`;
   return renderPage(c, { path: "/quickstart", title: "WIF Quickstart", description: "Use an injected wallet or configured WalletConnect session to authorize chat-only WIF x402 payments, or integrate the exact EVM challenge as a developer.", body });
@@ -1198,7 +1198,7 @@ await fetch("/v1/quote", {
 function workflowTitle(u: (typeof WORKFLOWS)[number]): string {
   if (config.paymentChain !== "robinhood") return u.title;
   const status: Record<string, string> = {
-    "agent-allowance": " (experimental)",
+    "agent-allowance": "",
     "content-pipelines": " (not live on WIF)",
     "agent-commerce": marketplaceEnabled() ? "" : " (disabled)",
     "team-budgets": " (not live on WIF)",
@@ -1332,7 +1332,7 @@ POST ${origin}/a2a`,
       </table></div>
     `)}
     ${ctaFinal("Connect <em>your agent.</em>")}`;
-  return renderPage(c, { path: "/solutions/agents", title: "AI agents", description: config.paymentChain === "robinhood" ? "Use Moltworld from an MCP client for chat-only WIF quotes and caller-authorized requests; mandate settlement remains experimental." : "Use Moltworld from OpenClaw, Hermes Agent, Claude Code, A2A or any MCP client, with mandate spending limits.", body, data: catalogScript(models) });
+  return renderPage(c, { path: "/solutions/agents", title: "AI agents", description: config.paymentChain === "robinhood" ? "Use Moltworld from an MCP client for chat-only WIF quotes and caller-authorized requests; owner-funded mandates support live agent payments." : "Use Moltworld from OpenClaw, Hermes Agent, Claude Code, A2A or any MCP client, with mandate spending limits.", body, data: catalogScript(models) });
 }
 
 function solutionsDevelopers(c: Context) {
@@ -1499,7 +1499,7 @@ function agentCard(t: ReturnType<typeof agentTypes>[number]): string {
 }
 
 function useCases(c: Context) {
-  const mandatesLabel = config.paymentChain === "robinhood" ? "Mandate setup (experimental)" : "Mandates";
+  const mandatesLabel = config.paymentChain === "robinhood" ? "Live mandates" : "Mandates";
   const body = `
     ${pageHero({ title: "Every kind of agent. <em>One wallet.</em>", ctas: `${btn(`${docs()}/agents/mcp`, "Connect an agent")}${btn("/products/mandates", mandatesLabel, "ghost")}` })}
     ${sec(`<div class="uc-grid" data-reveal>${agentTypes().map(agentCard).join("")}</div>`, { line: false })}
@@ -1529,7 +1529,7 @@ function agentPage(slug: string) {
     const configs = robinhood ? [["chat", "Chat-only flow", `// WIF deployment: use remote MCP for discovery and quotes.
 // A compatible EVM x402 client must authorize each enabled chat request.
 // Image, voice, video, marketplace, and autonomous mandates are unavailable.`, "sh"] as [string, string, string, string]] : t.configs;
-    const detailFacts = robinhood ? [["tag", "Robinhood Chain currently supports chat-only WIF checkout."], ["wallet", "A caller-controlled EVM wallet authorizes the exact quote-bound payment."], ["receipt", "Keep the signed receipt returned by a completed paid chat request."], ["shield", "Mandate setup is experimental; marketplace and media surfaces are unavailable."]] as Array<[string, string]> : t.facts;
+    const detailFacts = robinhood ? [["tag", "Robinhood Chain currently supports chat-only WIF checkout."], ["wallet", "A caller-controlled EVM wallet authorizes the exact quote-bound payment."], ["receipt", "Keep the signed receipt returned by a completed paid chat request."], ["shield", "Owner-funded mandates support live payments. Marketplace APIs require enabled checkout and approved listings; media is unavailable."]] as Array<[string, string]> : t.facts;
     const body = `
       ${pageHero({
         crumbs: [["Use cases", "/use-cases"]],
@@ -1560,9 +1560,9 @@ function workflowPage(slug: string) {
     const meta = WORKFLOWS.find((u) => u.slug === slug)!;
     const detail = useCaseDetails()[slug];
     const robinhood = config.paymentChain === "robinhood";
-    const problem = robinhood ? "This workflow is illustrative on the Robinhood Chain deployment. Chat settlement has live proof. Marketplace checkout uses approved real APIs when enabled; media and autonomous mandate settlement claims remain unverified." : detail.problem;
-    const how = robinhood ? ["Use the Playground or a compatible EVM x402 client for an enabled chat model.", "Review the exact USD quote and quote-bound WIF amount before authorizing.", "Keep the signed receipt returned by a completed paid chat request.", marketplaceEnabled() ? "Use approved marketplace listings for paid API calls; keep agent mandates experimental until live settlement is verified." : "Treat mandate setup as experimental and marketplace actions as disabled."] : detail.how;
-    const code = robinhood ? "// WIF deployment: chat-only paid surface\n// Request a free quote, then authorize the exact x402 EVM challenge.\n// Marketplace: /v1/market (when enabled). Agent mandates remain experimental." : detail.code;
+    const problem = robinhood ? "This workflow is illustrative on the Robinhood Chain deployment. Chat settlement has live proof. Marketplace checkout uses approved real APIs when enabled; media remains unavailable and creator sales still need live validation." : detail.problem;
+    const how = robinhood ? ["Use the Playground or a compatible EVM x402 client for an enabled chat model.", "Review the exact USD quote and quote-bound WIF amount before authorizing.", "Keep the signed receipt returned by a completed paid chat request.", marketplaceEnabled() ? "Use approved marketplace listings for paid API calls or a funded mandate for agent payments." : "Use a funded mandate for agent payments. Marketplace actions are disabled here."] : detail.how;
+    const code = robinhood ? "// WIF deployment: chat-only paid surface\n// Request a free quote, then authorize the exact x402 EVM challenge.\n// Marketplace: /v1/market (when enabled). Owner-funded agent mandates are live." : detail.code;
     const body = `
       ${pageHero({ crumbs: [["Solutions", "/solutions"]], title: esc(meta.title), ctas: detail.products.map(([label, href], i) => btn(href, esc(label), i ? "ghost" : "primary")).join("") })}
       ${sec(`

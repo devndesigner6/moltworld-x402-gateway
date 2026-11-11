@@ -43,12 +43,12 @@ describe("site scripts", () => {
     expect(html).not.toContain('data-modality="voice"');
   });
 
-  it("shows a MetaMask-first connect action and a separate experimental mandate setup link", () => {
+  it("shows a MetaMask-first connect action and the live mandate setup link", () => {
     const html = payerWidget("robinhood");
     expect(html).toContain('src="/assets/wallets/metamask.png"');
     expect(html).toContain('aria-label="Connect MetaMask"');
     expect(html).toContain('href="/products/mandates"');
-    expect(html).toContain("autonomous WIF settlement is not verified");
+    expect(html).toContain("Live WIF mandates");
     expect(SITE_JS).toContain("loadPay().catch(() => {});");
     expect(SITE_JS).toContain('await wallets.connect(metaMask.id);');
   });
@@ -79,7 +79,7 @@ describe("site scripts", () => {
       registerSite(app);
       const html = await (await app.request("/")).text();
       for (const marker of [
-        "Every AI chat model",
+        "Every AI model",
         "Three products.",
         "Gateway",
         "Mandates",
@@ -90,7 +90,7 @@ describe("site scripts", () => {
         "Not enabled on WIF",
         "Built for software",
         "Remote and local MCP servers",
-        "real facilitator settlement is unverified",
+        "Live WIF mandates",
         "A2A agent card and llms.txt",
         "Every kind of agent.",
         "uc-grid",
@@ -99,7 +99,13 @@ describe("site scripts", () => {
       expect(html).toContain("Image, voice, and video generation are not enabled");
       expect(html).toContain("The answer is generated first. WIF settlement completes before the response is returned.");
       const solutions = await (await app.request("/solutions")).text();
-      expect(solutions).toContain("Agent allowances (experimental)");
+      expect(solutions).toContain("Agent allowances");
+      const mandate = await (await app.request("/products/mandates")).text();
+      expect(mandate).toContain("0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3");
+      expect(mandate).toContain("req_uPG_4T8Lt9AlG3qS");
+      expect(mandate).toContain('data-field="risk-ack"');
+      expect(mandate).toContain("independent security audit");
+      expect(mandate).not.toContain("settlement has not yet been proven");
       expect(solutions).toContain("Content pipelines (not live on WIF)");
       expect(solutions).toContain("Agent commerce (disabled)");
       expect(solutions).toContain("Team budgets (not live on WIF)");

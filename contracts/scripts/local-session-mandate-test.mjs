@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
+import { fileURLToPath } from "node:url";
 import {
   createPublicClient,
   createWalletClient,
@@ -22,7 +23,7 @@ const GANACHE_BALANCE = "1000000000000000000000";
 const MAGIC_VALUE = "0x1626ba7e";
 const FAILURE_VALUE = "0xffffffff";
 
-const root = dirname(dirname(new URL(import.meta.url).pathname));
+const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceRoot = join(root, "src");
 const testRoot = join(root, "test");
 
@@ -73,7 +74,7 @@ function compileContracts(outputDir) {
   const result = spawnSync(
     "npx",
     ["--yes", "solc@0.8.30", "--standard-json"],
-    { cwd: root, input: JSON.stringify(input), encoding: "utf8" }
+    { cwd: root, input: JSON.stringify(input), encoding: "utf8", shell: process.platform === "win32", windowsHide: true }
   );
   if (result.status !== 0) {
     throw new Error(
@@ -102,7 +103,7 @@ function compileContracts(outputDir) {
 }
 
 async function waitForRpc(publicClient, process, logs) {
-  const deadline = Date.now() + 20_000;
+  const deadline = Date.now() + 60_000;
   let lastError;
   while (Date.now() < deadline) {
     if (process.exitCode !== null) {
@@ -122,6 +123,10 @@ async function waitForRpc(publicClient, process, logs) {
 
 async function stopProcess(process) {
   if (!process || process.exitCode !== null) return;
+  if (globalThis.process.platform === "win32") {
+    spawnSync("taskkill", ["/pid", String(process.pid), "/t", "/f"], { windowsHide: true });
+    return;
+  }
   try {
     globalThis.process.kill(-process.pid, "SIGTERM");
   } catch {
@@ -174,8 +179,11 @@ async function main() {
   const compileDir = mkdtempSync(join(tmpdir(), "wif-session-solc-"));
 
   try {
-    ganache = spawn("npx", ganacheArgs, {
+    const ganacheCli = process.env.GANACHE_CLI;
+    ganache = spawn(ganacheCli ? process.execPath : "npx", ganacheCli ? [ganacheCli, ...ganacheArgs.slice(2)] : ganacheArgs, {
       cwd: root,
+      shell: !ganacheCli && process.platform === "win32",
+      windowsHide: true,
       detached: true,
       stdio: ["ignore", "pipe", "pipe"],
     });
@@ -344,6 +352,26 @@ async function main() {
       args: [digest, wrapper(amount, exactProxy, sessionEpoch + 1n)],
     });
     assert.equal(wrongEpochResult.toLowerCase(), FAILURE_VALUE, "a signature cannot be relabeled with another epoch");
+
+    // Fresh valid signatures prove the contract rejects policy violations, not just a changed digest.
+    for (const [label, patch] of [
+      ["over per-call cap", { permitted: { token: tokenAddress, amount: maxPerCall + 1n } }],
+      ["wrong token", { permitted: { token: agent.address, amount } }],
+      ["wrong recipient", { witness: { to: agent.address, validAfter } }],
+      ["wrong proxy", { spender: wrongProxy }],
+      ["future authorization", { witness: { to: payTo, validAfter: deadline - 1n } }],
+      ["expired authorization", { deadline: blockBeforeSigning.timestamp - 1n }],
+    ]) {
+      const candidate = { ...message, ...patch };
+      const candidateDigest = hashTypedData({ domain, types: permitTypes, primaryType: "PermitWitnessTransferFrom", message: candidate });
+      const signature = await agent.signTypedData({ domain: sessionAuthDomain, types: sessionAuthTypes, primaryType: "SessionAuthorization", message: { permit2Digest: candidateDigest, sessionEpoch } });
+      const encoded = encodeAbiParameters(
+        [{ type: "address" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "address" }, { type: "uint256" }, { type: "uint256" }, { type: "bytes" }],
+        [candidate.permitted.token, candidate.permitted.amount, candidate.spender, candidate.nonce, candidate.deadline, candidate.witness.to, candidate.witness.validAfter, sessionEpoch, signature]
+      );
+      const result = await publicClient.readContract({ address: mandateAddress, abi: mandate.abi, functionName: "isValidSignature", args: [candidateDigest, encoded] });
+      assert.equal(result.toLowerCase(), FAILURE_VALUE, `${label} must fail even with the session key's valid signature`);
+    }
 
     const deadlineBeyondExpiry = expiry + 1n;
     const messageBeyondExpiry = { ...message, deadline: deadlineBeyondExpiry };

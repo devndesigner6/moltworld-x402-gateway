@@ -32,7 +32,7 @@ export async function readWifMandate(addressText: string) {
     max_per_call_atomic: String(state.maxPerCall), max_per_call: formatUnits(BigInt(String(state.maxPerCall)), 18),
     remaining_allowance_atomic: remaining.toString(), remaining_allowance: formatUnits(remaining, 18),
     balance_atomic: balance.toString(), balance: formatUnits(balance, 18),
-    expiry: expiry.toString(), session_epoch: String(state.sessionEpoch), code_verified: true, experimental: true,
+    expiry: expiry.toString(), session_epoch: String(state.sessionEpoch), code_verified: true, experimental: false, audit_status: "unaudited",
     observed_block: block.number.toString(),
   };
 }

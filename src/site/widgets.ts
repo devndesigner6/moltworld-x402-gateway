@@ -182,7 +182,7 @@ export function payerWidget(paymentChain: typeof config.paymentChain = config.pa
       <div class="card payer" id="payer">
         <div class="payer-modes" role="group" aria-label="Pay with">
           <button class="tab" type="button" data-payer-mode="wallet" aria-pressed="true">${icon("wallet", 16)}Wallet</button>
-          <a class="tab" href="/products/mandates" title="Experimental setup only; autonomous WIF settlement is not verified">${icon("mandate", 16)}Mandate setup (beta)</a>
+          <a class="tab" href="/products/mandates" title="Live WIF mandates with owner-controlled spending limits">${icon("mandate", 16)}Live mandates</a>
         </div>
         <div class="payer-pane" data-pane="wallet">
           <div class="wallet-list" id="walletList"><button class="btn btn-ghost btn-small wallet-btn" type="button" id="walletLoad" aria-label="Connect MetaMask" title="Connect MetaMask directly"><img src="/assets/wallets/metamask.png" alt="" width="18" height="18">Connect MetaMask</button></div>

@@ -72,7 +72,7 @@ function requiredInput(root: HTMLElement, name: string): HTMLInputElement {
 
 function requireRiskAcknowledgement(root: HTMLElement) {
   if (!requiredInput(root, "risk-ack").checked) {
-    throw new Error("Tick the risk acknowledgement after reviewing the experimental-contract warning before continuing.");
+    throw new Error("Tick the risk acknowledgement after reviewing the unaudited-contract notice before continuing.");
   }
 }
 
@@ -277,7 +277,7 @@ export function mountWifMandateSetup(root: HTMLElement) {
     const totalCap = parseUnits(requiredInput(root, "total-cap").value.trim(), 18);
     const days = Number(requiredInput(root, "duration-days").value);
     if (perCall <= 0n || totalCap < perCall) throw new Error("Set a positive per-call WIF cap no greater than the total cap.");
-    if (!Number.isInteger(days) || days < 1 || days > 7) throw new Error("Experimental beta mandate expiry is limited to 1 to 7 days.");
+    if (!Number.isInteger(days) || days < 1 || days > 7) throw new Error("Mandate expiry is limited to 1 to 7 days.");
     const balance = BigInt(String(await ctx.publicClient.readContract({ address, abi: WIF_MANDATE_ARTIFACT.abi as any, functionName: "tokenBalance" })));
     if (totalCap > balance || totalCap === (1n << 256n) - 1n) throw new Error("Total cap must be finite and no greater than the WIF already held by the mandate.");
     const expiry = (await ctx.publicClient.getBlock()).timestamp + BigInt(days * 86_400);

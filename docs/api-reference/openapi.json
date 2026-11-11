@@ -598,7 +598,7 @@
           "Mandates"
         ],
         "summary": "Draft a mandate",
-        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate EVM session-mandate contract is an undeployed, unaudited prototype, not a production feature.\n\nBuilds the mandate program for an owner. Nothing is stored.",
+        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate owner-controlled EVM mandate uses wallet-authorized setup and has verified mainnet settlement. It remains unaudited.\n\nBuilds the mandate program for an owner. Nothing is stored.",
         "requestBody": {
           "required": true,
           "content": {
@@ -680,7 +680,7 @@
           }
         },
         "deprecated": true,
-        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate EVM session-mandate contract is an undeployed, unaudited prototype, not a production feature."
+        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate owner-controlled EVM mandate uses wallet-authorized setup and has verified mainnet settlement. It remains unaudited."
       },
       "get": {
         "tags": [
@@ -721,7 +721,7 @@
           }
         },
         "deprecated": true,
-        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate EVM session-mandate contract is an undeployed, unaudited prototype, not a production feature."
+        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate owner-controlled EVM mandate uses wallet-authorized setup and has verified mainnet settlement. It remains unaudited."
       }
     },
     "/v1/mandates/{id}": {
@@ -773,7 +773,7 @@
           "Mandates"
         ],
         "summary": "Revoke a mandate",
-        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate EVM session-mandate contract is an undeployed, unaudited prototype, not a production feature.\n\nFinal. Payments under the mandate are refused afterwards.",
+        "description": "Unavailable on Robinhood WIF: the legacy Algorand mandate API is blocked with `503 migration_incomplete`. The separate owner-controlled EVM mandate uses wallet-authorized setup and has verified mainnet settlement. It remains unaudited.\n\nFinal. Payments under the mandate are refused afterwards.",
         "parameters": [
           {
             "name": "id",

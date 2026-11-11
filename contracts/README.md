@@ -1,6 +1,6 @@
-# WIF Permit2 session mandate prototype
+# WIF Permit2 session mandate
 
-`src/WifPermit2SessionMandate.sol` is a self-contained Solidity prototype implementing an owner-funded EIP-1271 signer for x402 EVM exact Permit2 payments.
+`src/WifPermit2SessionMandate.sol` is a Solidity contract implementing an owner-funded EIP-1271 signer for x402 EVM exact Permit2 payments.
 
 ## Wrapper
 
@@ -26,7 +26,7 @@ On Robinhood mainnet (`chainId=4663`), construction rejects anything except the 
 
 ## Important scope note
 
-The aggregate cap depends on the canonical WIF ERC-20 decrementing allowance after each successful Permit2 transfer. The validator checks live allowance before each signature validation; it does not reserve concurrent validations. A local Ganache test exercises state transitions, but this prototype has not been production-audited or verified through a real Robinhood Permit2/facilitator settlement.
+The aggregate cap depends on canonical WIF allowance decrementing after each successful Permit2 transfer. Concurrent validations do not reserve allowance; the final on-chain transfer enforces the remaining cap. A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Compile
 

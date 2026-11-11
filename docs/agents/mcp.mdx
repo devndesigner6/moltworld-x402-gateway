@@ -1,6 +1,6 @@
 ---
 title: "MCP"
-description: "Caller-signed WIF chat relay and local-development MCP tools."
+description: "Caller-signed WIF relay and live owner-funded agent payments through local MCP."
 ---
 
 Moltworld works with any agent that speaks the [Model Context Protocol](https://modelcontextprotocol.io).
@@ -8,15 +8,17 @@ Moltworld works with any agent that speaks the [Model Context Protocol](https://
 | | Remote server | Local server |
 | --- | --- | --- |
 | Address | `https://moltworldd.vercel.app/mcp` (streamable HTTP) | Repository build from `sdk/js/src/mcp.ts` (stdio; mandate path is not an npm release yet) |
-| Holds a wallet | No | A dedicated development EOA or prototype session key; neither is a production user mandate |
-| The agent can | Discover chat models, request quotes, relay caller-signed chat, and read spend metadata | Run experimental local signer code only; not production-ready for unattended WIF payments |
+| Holds a wallet | No | A local session key for an owner-funded mandate; dedicated EOA mode remains development-only |
+| The agent can | Discover models, request quotes, relay caller-signed requests and read spend metadata | Authorize WIF-paid tasks within the on-chain mandate limits |
 | Best for | A separate wallet service or caller approval | Agent-hosted signing; the owner's wallet key is never given to the agent |
 
-The live WIF model surface is chat-only. The remote MCP is keyless and supports model discovery, quotes, caller-signed chat relay, and spend metadata; it cannot initiate or pay autonomously. The owner-driven setup page at `https://moltworldd.vercel.app/products/mandates` can deploy, fund, arm, inspect, revoke, and withdraw from a real Robinhood mainnet policy wallet. This is an experimental, unaudited beta; custom EIP-1271 mandate settlement through the live facilitator has not been proven. Use only a small test balance. Image, speech, video, automatic refunds, and marketplace payouts are not enabled. Only a local stdio client can use the separately generated session key.
+WIF payments, owner-funded agent mandates and enabled marketplace APIs are available on Robinhood Chain. Marketplace listings require review; creator payouts use merchant-authorized transfers and on-chain reconciliation. Media and automatic WIF refunds remain unavailable. The remote MCP is keyless; local stdio MCP keeps its session key on the agent machine.
+
+A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Local development EOA server
 
-The direct local EOA mode below is for development only. It signs with a separate EOA key and process-local budgets; those budgets are not an on-chain cap or user-authorized mandate. Never use the owner's/master wallet key. The separate EIP-1271 session-mandate beta is described below; it is unaudited and not production-verified. Use the remote caller-signed relay for live requests unless you explicitly accept the experimental mandate risk and use only a small test amount.
+Direct EOA mode is development-only and uses process-local budgets. Use an owner-funded mandate for contract-enforced limits. Never supply the owner's wallet key to an agent. The contract remains unaudited.
 
 Generate a dedicated disposable EVM key. The command prints only its derived address; the secret is saved with mode `0600`.
 
@@ -45,19 +47,21 @@ Configure the local server with:
 | `MOLTWORLD_PAYMENT_TO` | gateway health `pay_to` | Expected receiving address; optional guard for EOA mode, required for mandate mode |
 | `MOLTWORLD_EVM_KEY_ROLE` | | Must be `dedicated`; master/primary keys are refused |
 | `MOLTWORLD_ALLOW_EVM_EOA_AUTOPAY` | | Exact acknowledgement shown above; local development only |
-| `MOLTWORLD_WIF_MANDATE_ADDRESS` | | Owner-deployed experimental Robinhood mandate contract |
+| `MOLTWORLD_WIF_MANDATE_ADDRESS` | | Owner-deployed live Robinhood mandate contract |
 | `MOLTWORLD_WIF_MANDATE_OWNER` | | Required owner wallet address; must match the contract |
 | `MOLTWORLD_WIF_SESSION_KEY_FILE` | `~/.moltworld/wif-agent.key` | Local-only session private key file; never upload it |
 
 The SDK checks the WIF allowance to the canonical Permit2 contract with read-only RPC before signing. If it is insufficient, it refuses without sending an approval transaction. Approve the exact required WIF amount to Permit2 explicitly first; the approval transaction needs native ETH for gas.
 
-Robinhood Chain mainnet uses chain ID `4663` (`eip155:4663`). The live remote MCP supports model discovery, quote requests, caller-signed chat relay, and spend metadata. Marketplace routes are disabled on WIF and are not a usable listing or payout service.
+Robinhood Chain mainnet uses chain ID `4663` (`eip155:4663`). Marketplace checkout requires enabled routes and an approved real API listing. Creator transfers remain merchant-authorized and are recorded sent only after on-chain verification.
 
-## Experimental on-chain WIF mandate
+## Live on-chain WIF mandate
 
-This is a real but experimental product path, not an audited or facilitator-verified feature. The contract source is in `contracts/src/WifPermit2SessionMandate.sol`; the generated bytecode is pinned in `sdk/js/src/wif-mandate-artifact.ts`. The owner wizard at `https://moltworldd.vercel.app/products/mandates` binds one session key to canonical WIF, Permit2, the exact x402 proxy, the live gateway pay-to, a per-call cap, finite aggregate allowance, and short expiry. Owner revocation advances the policy epoch and clears Permit2 allowance. The local Ganache tests do not prove real Permit2/facilitator interoperability or an on-chain WIF mandate settlement; use only a small amount until independently reviewed and live-tested.
+This is a live, mainnet-verified mandate path. The contract source and generated bytecode are pinned. The owner wizard binds the session key to WIF, Permit2, the x402 proxy, gateway recipient, finite allowance, per-call cap and expiry. Revocation advances the session epoch and clears the Permit2 allowance. Independent security review is still required.
 
-For a local prototype, build the checkout and generate a dedicated session key (only its address is printed):
+A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
+
+For local agent use, build the checkout and generate a dedicated session key (only its address is printed):
 
 ```bash
 pnpm install --frozen-lockfile

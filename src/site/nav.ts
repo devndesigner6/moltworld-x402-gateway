@@ -83,12 +83,12 @@ export const AUDIENCES = [
 export function navMenus(): NavMenu[] {
   const docs = config.docsUrl;
   const robinhood = config.paymentChain === "robinhood";
-  const activeProducts = PRODUCTS.map((p) => robinhood && p.label === "Mandates" ? { ...p, label: "Mandates (beta)" } : robinhood && !marketplaceEnabled() && p.label === "Marketplace" ? { ...p, label: "Marketplace (disabled)" } : p);
+  const activeProducts = PRODUCTS.map((p) => robinhood && p.label === "Mandates" ? { ...p, label: "Live mandates" } : robinhood && !marketplaceEnabled() && p.label === "Marketplace" ? { ...p, label: "Marketplace (disabled)" } : p);
   const activeBuiltIns = builtIn().map((p) => robinhood && p.label === "Refunds and rebates" ? { ...p, label: "Refunds and rebates (not live on WIF)" } : p);
   const activeAudiences = AUDIENCES.map((a) => robinhood && !marketplaceEnabled() && a.label === "API sellers" ? { ...a, label: "API sellers (marketplace disabled)" } : a);
   const activeWorkflows = WORKFLOWS.map((u) => {
     if (!robinhood) return u;
-    const status = u.slug === "model-escalation" || (u.slug === "agent-commerce" && marketplaceEnabled()) ? "" : u.slug === "agent-allowance" ? " (experimental)" : u.slug === "agent-commerce" ? " (disabled)" : " (not live on WIF)";
+    const status = u.slug === "model-escalation" || (u.slug === "agent-commerce" && marketplaceEnabled()) ? "" : u.slug === "agent-allowance" ? "" : u.slug === "agent-commerce" ? " (disabled)" : " (not live on WIF)";
     return { ...u, short: `${u.short}${status}` };
   });
   return [

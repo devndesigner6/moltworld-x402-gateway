@@ -243,7 +243,7 @@ export async function main() {
 
   if (robinhood) {
     server.registerTool("moltworld_marketplace", {
-      description: "List approved WIF marketplace listings; the live service may keep this feature disabled.",
+      description: "List approved WIF marketplace APIs. An enabled marketplace can be empty until a real listing is approved.",
       inputSchema: z.object({}),
     }, async () => {
       try {
@@ -254,7 +254,7 @@ export async function main() {
     });
     server.registerTool("moltworld_market", {
       description: mandateBacked
-        ? "Attempt a WIF marketplace payment through the configured mandate; the live marketplace currently remains disabled by the operator."
+        ? "Call an approved WIF marketplace API through the configured owner-funded mandate."
         : "Development-only marketplace payment using a dedicated local EOA and process USD caps; this is not an on-chain mandate.",
       inputSchema: z.object({ slug: z.string().regex(/^[a-z0-9][a-z0-9-]{2,47}$/), body: z.record(z.string(), z.unknown()) }),
     }, async ({ slug, body }) => {

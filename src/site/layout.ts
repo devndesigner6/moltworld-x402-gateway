@@ -123,7 +123,7 @@ function header(path: string): string {
 function footer(): string {
   const docs = config.docsUrl;
   const robinhood = config.paymentChain === "robinhood";
-  const activeProducts = PRODUCTS.map((p) => robinhood && p.label === "Mandates" ? { ...p, label: "Mandates (beta)" } : robinhood && !marketplaceEnabled() && p.label === "Marketplace" ? { ...p, label: "Marketplace (disabled)" } : p);
+  const activeProducts = PRODUCTS.map((p) => robinhood && p.label === "Mandates" ? { ...p, label: "Live mandates" } : robinhood && !marketplaceEnabled() && p.label === "Marketplace" ? { ...p, label: "Marketplace (disabled)" } : p);
   const activeAudiences = AUDIENCES.map((a) => robinhood && !marketplaceEnabled() && a.label === "API sellers" ? { ...a, label: "API sellers (marketplace disabled)" } : a);
   const githubUrl = config.paymentChain === "robinhood" ? "https://github.com/devndesigner6/moltworld-x402-gateway" : "https://github.com/hackcat29/moltworld-x402";
   const developerLinks: Array<readonly [string, string]> = config.paymentChain === "robinhood"

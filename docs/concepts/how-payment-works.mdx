@@ -31,7 +31,9 @@ The body you authorize must be the body you send. The signed 402 challenge is au
 
 ## Current support boundaries
 
-Robinhood production is chat-only. Image, voice, video, marketplace payments, automatic WIF refunds, and agent mandates are not enabled. A remote MCP server can relay a caller-signed chat payment but never signs or pays on its own. An EIP-1271 WIF session-mandate prototype is in the repository, but it is undeployed, unaudited, and has no website setup flow; do not fund it with valuable balances.
+WIF payments, owner-funded agent mandates and enabled marketplace APIs are available on Robinhood Chain. Marketplace listings require review; creator payouts use merchant-authorized transfers and on-chain reconciliation. Media and automatic WIF refunds remain unavailable. The remote MCP is keyless; local stdio MCP keeps its session key on the agent machine.
+
+A real local MCP task settled 0.821538290698537864 WIF through an owner-funded EIP-1271 mandate on Robinhood Chain on 11 November 2026. Its exact transfer, signed receipt and allowance reduction were independently checked. [Transaction](https://robinhoodchain.blockscout.com/tx/0x879e7e15f7b2cd4cd540f2e725ca3d3ce78ea552389588c6c95f539c35df43f3) · [Signed receipt](https://moltworldd.vercel.app/v1/receipts/req_uPG_4T8Lt9AlG3qS). The contract has not had an independent security audit.
 
 ## Retries
 
